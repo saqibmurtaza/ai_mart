@@ -1,0 +1,45 @@
+# Global .gitignore for ecommerce-ai-assistant monorepo
+
+# Python uv environments
+**/.venv/
+**/__pycache__/
+**/*.pyc
+
+# Node.js environments and builds
+**/node_modules/
+**/.next/
+**/dist/
+
+# --- IMPORTANT: Ignore actual .env files containing secrets ---
+# This ensures that your actual .env files (with your real API keys, etc.) are NOT committed.
+# Each subfolder's .env file will be ignored.
+backend/.env
+chatbot/.env
+sanity-studio/.env
+web-frontend/.env.local # Next.js typically uses .env.local for local environment variables
+web-frontend/.env.development.local
+web-frontend/.env.test.local
+web-frontend/.env.production.local
+
+# If you have a general .env at the root for shared variables, ignore that too:
+/.env
+
+# --- Optional: If you use .env.example files as templates (RECOMMENDED) ---
+# Ensure that these specific example files ARE NOT ignored, so they can be committed.
+# Make sure no other general ignore rule (like *.env*) accidentally catches them.
+!backend/.env.example
+!chatbot/.env.example
+!sanity-studio/.env.example
+!web-frontend/.env.local.example
+
+# uv lock file (KEEP THIS IN YOUR REPO)
+uv.lock
+
+# VS Code specific (if you had this folder)
+.vscode/
+
+# Other common ignores
+*.log
+npm-debug.log*
+yarn-debug.log*
+.DS_Store

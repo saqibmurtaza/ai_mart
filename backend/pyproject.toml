@@ -1,0 +1,34 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "uvicorn[standard]",
+    "httpx", # For async HTTP calls (e.g., if backend fetches data from Sanity API)
+    "requests", # If you have any synchronous HTTP calls (though httpx is preferred for async)
+    "python-dotenv", # For loading environment variables from .env file
+    "pydantic", # FastAPI relies on Pydantic for data validation and serialization
+    "pydantic-settings", # For robust settings management (your config/settings.py)
+    "sqlmodel", # ORM for interacting with your database
+    "supabase", # Supabase Python client
+    "psycopg2-binary", # PostgreSQL adapter for synchronous DB connections (often used with SQLAlchemy/SQLModel)
+    "asyncpg", # PostgreSQL adapter for asynchronous DB connections (recommended for FastAPI)
+    "rich", # For better CLI logs (optional, but nice for development)
+    "orjson", # Faster JSON parsing in FastAPI (optional, but improves performance)
+    "fastapi>=0.115.14",
+]
+[tool.uv]
+dev-dependencies = [
+    "pytest",
+    "pytest-asyncio"
+    # Add any other dev tools like black, ruff, mypy if you use them here
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/backend"]
