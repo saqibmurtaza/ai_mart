@@ -1,103 +1,224 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
+import Link from 'next/link';
+import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import {
+  getHomepageSection, HomepageSectionContent,
+  getContentBlocks, ContentBlockData,
+  getCategories, CategoryData,
+  getFeaturedProducts, Product // <<<<< Import new API function and Product interface
+} from '@/lib/api';
+import { PortableText } from '@portabletext/react';
+import ContentBlock from '@/components/ContentBlock';
+import CategoryCard from '@/components/CategoryCard';
+import ProductCard from '@/components/ProductCard'; // <<<<< Import new ProductCard
+
+export default function HomePage() {
+  const [benefitsSection, setBenefitsSection] = useState<HomepageSectionContent | null>(null);
+  const [loadingBenefits, setLoadingBenefits] = useState(true);
+  
+  const [contentBlocks, setContentBlocks] = useState<ContentBlockData[]>([]);
+  const [loadingContentBlocks, setLoadingContentBlocks] = useState(true);
+
+  const [categories, setCategories] = useState<CategoryData[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
+
+  // <<<<< NEW STATE FOR FEATURED PRODUCTS >>>>>
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [loadingFeaturedProducts, setLoadingFeaturedProducts] = useState(true);
+
+
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+
+    async function fetchPageData() {
+      // Fetch Homepage Section
+      setLoadingBenefits(true);
+      try {
+        const benefitsData = await getHomepageSection('hydrogen-water-benefits');
+        setBenefitsSection(benefitsData || null);
+        console.log("Frontend: Fetched benefits section data:", benefitsData);
+      } catch (error) {
+        console.error("Frontend: Failed to load homepage benefits section:", error);
+        setBenefitsSection(null);
+      } finally {
+        setLoadingBenefits(false);
+      }
+
+      // Fetch Content Blocks
+      setLoadingContentBlocks(true);
+      try {
+        const blocksData = await getContentBlocks();
+        setContentBlocks(blocksData || []);
+        console.log("Frontend: Fetched content blocks data:", blocksData);
+      } catch (error) {
+        console.error("Frontend: Failed to load content blocks:", error);
+        setContentBlocks([]);
+      } finally {
+        setLoadingContentBlocks(false);
+      }
+
+      // Fetch Categories
+      setLoadingCategories(true);
+      try {
+        const categoriesData = await getCategories();
+        setCategories(categoriesData || []);
+        console.log("Frontend: Fetched categories data:", categoriesData);
+      } catch (error) {
+        console.error("Frontend: Failed to load categories:", error);
+        setCategories([]);
+      } finally {
+        setLoadingCategories(false);
+      }
+
+      // <<<<< FETCH FEATURED PRODUCTS >>>>>
+      setLoadingFeaturedProducts(true);
+      try {
+        const featuredProductsData = await getFeaturedProducts();
+        setFeaturedProducts(featuredProductsData || []);
+        console.log("Frontend: Fetched featured products data:", featuredProductsData);
+      } catch (error) {
+        console.error("Frontend: Failed to load featured products:", error);
+        setFeaturedProducts([]);
+      } finally {
+        setLoadingFeaturedProducts(false);
+      }
+    }
+    fetchPageData();
+  }, []);
+
+  // Hydration fix remains (if you are seeing a brief flash of unstyled content)
+  if (!hasMounted) {
+    return (
+      <div className="relative w-full h-[calc(100vh-4rem)] flex items-center justify-center text-white overflow-hidden">
         <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
+          src="/images/hero-main.jpg"
+          alt="Hydrogenie Hero"
+          fill
+          style={{ objectFit: 'cover' }}
           priority
+          className="absolute inset-0 z-0"
         />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+        <div className="relative z-10 text-center px-4 max-w-3xl mx-auto">
+          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-6 drop-shadow-lg">
+            Feel the Difference in Every Drop
+          </h1>
+          <p className="text-lg md:text-xl mb-10 drop-shadow-md">
+            Experience the pure power of hydrogen-infused water for enhanced wellness and vitality.
+          </p>
+          <Link
+            href="/products"
+            className="inline-block bg-accent text-white text-lg md:text-xl font-semibold px-10 py-5 rounded-full shadow-xl hover:bg-opacity-90 transition duration-300 ease-in-out transform hover:scale-105"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            Discover Products
+          </Link>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {/* Existing Hero Section */}
+      <div className="relative w-full h-[calc(100vh-4rem)] flex items-center justify-center text-white overflow-hidden">
+        <Image
+          src="/images/hero-main.jpg"
+          alt="Hydrogenie Hero"
+          fill
+          style={{ objectFit: 'cover' }}
+          priority
+          className="absolute inset-0 z-0"
+        />
+        <div className="relative z-10 text-center px-4 max-w-3xl mx-auto">
+          <h1 className="text-4xl md:text-6xl font-extrabold leading-tight mb-6 drop-shadow-lg">
+            Feel the Difference in Every Drop
+          </h1>
+          <p className="text-lg md:text-xl mb-10 drop-shadow-md">
+            Experience the pure power of hydrogen-infused water for enhanced wellness and vitality.
+          </p>
+          <Link
+            href="/products"
+            className="inline-block bg-accent text-white text-lg md:text-xl font-semibold px-10 py-5 rounded-full shadow-xl hover:bg-opacity-90 transition duration-300 ease-in-out transform hover:scale-105"
+          >
+            Discover Products
+          </Link>
+        </div>
+      </div>
+
+      {/* Category Showcase Section */}
+      <section className="max-w-7xl mx-auto py-16 px-4 my-12 text-center">
+        <h2 className="text-4xl font-bold text-gray-900 mb-10">Shop By Category</h2>
+        {loadingCategories ? (
+          <div className="text-center py-8 text-gray-600 text-lg">Loading categories...</div>
+        ) : categories.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8"> {/* Adjusted grid for more columns */}
+            {categories.map((category) => (
+              <CategoryCard key={category._id} category={category} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-600 text-lg">No categories found.</div>
+        )}
+      </section>
+
+      {/* <<<<< NEW FEATURED PRODUCTS SECTION >>>>> */}
+      <section className="max-w-7xl mx-auto py-16 px-4 my-12 text-center">
+        <h2 className="text-4xl font-bold text-gray-900 mb-10">Featured Products</h2>
+        {loadingFeaturedProducts ? (
+          <div className="text-center py-8 text-gray-600 text-lg">Loading featured products...</div>
+        ) : featuredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8"> {/* Product grid */}
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-600 text-lg">No featured products found.</div>
+        )}
+      </section>
+
+      {/* Dynamic Content Blocks Section (e.g., How It Works, Testimonials) */}
+      {loadingContentBlocks ? (
+        <div className="text-center py-12 text-gray-600 text-lg">Loading additional content blocks...</div>
+      ) : contentBlocks.length > 0 ? (
+        contentBlocks.map((block) => (
+          <ContentBlock key={block._id} data={block} />
+        ))
+      ) : (
+        <div className="text-center py-12 text-gray-600 text-lg">No additional content blocks found.</div>
+      )}
+
+      {/* Hydrogen Water Benefits Section (Keep as is, or order dynamically) */}
+      {loadingBenefits ? (
+        <div className="text-center py-12 text-gray-600 text-lg">Loading benefits section...</div>
+      ) : benefitsSection ? (
+        <section className="max-w-7xl mx-auto py-16 px-4 bg-white rounded-lg shadow-lg my-12 flex flex-col md:flex-row items-center gap-12">
+          {benefitsSection.imageUrl && (
+            <div className="w-full md:w-1/2 flex justify-center">
+              <Image
+                src={benefitsSection.imageUrl}
+                alt={benefitsSection.alt || benefitsSection.title || "Hydrogen Water Benefits Image"}
+                width={500}
+                height={500}
+                className="rounded-lg shadow-md object-contain"
+              />
+            </div>
+          )}
+          <div className="w-full md:w-1/2 text-center md:text-left">
+            <h2 className="text-4xl font-bold text-gray-900 mb-6">{benefitsSection.title}</h2>
+            <div className="text-gray-700 text-lg leading-relaxed">
+              <PortableText value={benefitsSection.description} />
+            </div>
+          </div>
+        </section>
+      ) : (
+        <div className="text-center py-12 text-gray-600 text-lg">Benefits section could not be loaded.</div>
+      )}
+
+      {/* You can add more sections below this if needed */}
+    </>
   );
 }

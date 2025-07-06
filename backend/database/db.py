@@ -1,6 +1,6 @@
 import os
 from supabase import Client, create_client
-from backend.settings import settings
+from config.settings import settings
 # REMOVE import psycopg2 # No longer needed
 # MODIFIED: Import AsyncSession and create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession

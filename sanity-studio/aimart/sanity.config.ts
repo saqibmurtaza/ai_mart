@@ -4,7 +4,6 @@ import {visionTool} from '@sanity/vision'
 import {schemaTypes} from './schemaTypes'
 
 export default defineConfig({
-  apiVersion: '2025-07-06',
   name: 'default',
   title: 'AIMart',
 

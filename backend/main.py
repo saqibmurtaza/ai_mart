@@ -2,10 +2,9 @@
 from fastapi import FastAPI, Depends, HTTPException, Query
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from backend.db import create_db_tables, get_session, supabase_admin, supabase_public
-from backend.sanity_client import fetch_static_promos, fetch_homepage_section, fetch_content_blocks, fetch_categories, fetch_featured_products
-from backend.supabase_client import fetch_dynamic_promos
-from backend.models import Product, DynamicPromo, CartItem, CheckoutPayload, Order, OrderItem, SanityProductAPIModel, HomepageSection, ContentBlock, Category, ProductDisplayAPIModel
+from database.db import create_db_tables, get_session, supabase_admin, supabase_public
+from services.sanity_service import fetch_static_promos, fetch_homepage_section, fetch_content_blocks, fetch_categories, fetch_featured_products
+from models.models import Product, DynamicPromo, CartItem, CheckoutPayload, Order, OrderItem, SanityProductAPIModel, HomepageSection, ContentBlock, Category, ProductDisplayAPIModel
 import logging, json, asyncio
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel
