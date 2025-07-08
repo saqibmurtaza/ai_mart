@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     NEXT_PUBLIC_SUPABASE_URL: str
     NEXT_PUBLIC_SUPABASE_ANON_KEY: str
     SUPABASE_SECRET_KEY: str # This is crucial for server-side
-    DATABASE_URL: str
+    DIRECT_URL: str
 
     # Sanity.io CMS Credentials
     SANITY_PROJECT_ID: str
@@ -26,10 +26,10 @@ class Settings(BaseSettings):
 settings = Settings()
 
 # Optional: Add a quick check to see if critical variables are loaded
-if not settings.DATABASE_URL:
-    print("ERROR: DATABASE_URL is not set! Check your .env file.")
+if not settings.DIRECT_URL:
+    print("ERROR: DIRECT_URL is not set! Check your .env file.")
     # Consider raising an error to stop the application if critical settings are missing
-    raise ValueError("DATABASE_URL is not configured.")
+    raise ValueError("DIRECT_URL is not configured.")
 
 if not settings.SUPABASE_SECRET_KEY:
     print("ERROR: SUPABASE_SECRET_KEY is not set! Check your .env file.")

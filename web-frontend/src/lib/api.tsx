@@ -1,6 +1,3 @@
-
-// src/lib/api.ts
-
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
 
 if (!FASTAPI_URL) {
@@ -10,11 +7,15 @@ if (!FASTAPI_URL) {
 export interface Product {
   id: string;
   name: string;
-  description?: string;
+  description?: any; // <<<<< CHANGED TO 'any' for PortableText compatibility >>>>>
   price: number;
   stock: number;
   category?: string;
   imageUrl?: string;
+  alt?: string; // <<<<< ADDED 'alt' property >>>>>
+  slug?: string; // Ensure slug is also here, as it's used for linking
+  isFeatured?: boolean; // Ensure this is also here for consistency
+  sku?: string; // Ensure this is also here for consistency
 }
 
 export interface CartItem {
@@ -27,7 +28,7 @@ export interface CartItem {
 
 export interface HomepageSectionContent {
   title: string;
-  description: any;
+  description: any; // Portable Text
   imageUrl?: string;
   alt?: string;
 }
@@ -45,7 +46,6 @@ export interface ContentBlockData {
   order: number;
 }
 
-// <<<<< ADD THIS NEW INTERFACE >>>>>
 export interface CategoryData {
   _id: string; // Add _id for consistency with Sanity documents
   title: string;
@@ -76,10 +76,10 @@ export async function getProducts(category?: string): Promise<Product[]> {
   }
 }
 
-export async function getProduct(id: string): Promise<Product | undefined> {
-  console.log(`Fetching product ${id} from FastAPI...`);
+export async function getProduct(slug: string): Promise<Product | undefined> { // Changed id to slug
+  console.log(`Fetching product ${slug} from FastAPI...`);
   try {
-    const response = await fetch(`${FASTAPI_URL}/products/${id}`);
+    const response = await fetch(`${FASTAPI_URL}/products/${slug}`); // Use slug in URL
     if (response.status === 404) {
       return undefined;
     }
@@ -90,7 +90,7 @@ export async function getProduct(id: string): Promise<Product | undefined> {
     const data: Product = await response.json();
     return data;
   } catch (error: any) {
-    console.error(`Error fetching product ${id}:`, error);
+    console.error(`Error fetching product ${slug}:`, error);
     throw new Error(`Failed to fetch product: ${error.message}`);
   }
 }
@@ -131,7 +131,6 @@ export async function getContentBlocks(): Promise<ContentBlockData[]> {
   }
 }
 
-// <<<<< ADD THIS NEW FUNCTION >>>>>
 export async function getCategories(): Promise<CategoryData[]> {
   console.log('Fetching categories from FastAPI...');
   try {

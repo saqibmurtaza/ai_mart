@@ -1,5 +1,5 @@
-import os
-import httpx
+import os, httpx, textwrap
+from typing import Optional
 
 SANITY_PROJECT_ID = os.getenv("SANITY_PROJECT_ID")
 SANITY_DATASET = os.getenv("SANITY_DATASET")
@@ -13,14 +13,14 @@ sanity_client = httpx.AsyncClient(
 )
 
 async def fetch_homepage_section(slug: str):
-    query = f"""
+    query = textwrap.dedent(f"""
     *[_type == "homepageSection" && slug.current == "{slug}"][0]{{
         title,
         description,
         "imageUrl": image.asset->url,
         "alt": image.alt
     }}
-    """
+    """)
     url_params = {"query": query}
     
     print(f"DEBUG: Sanity GROQ Query (homepage): {query}")
@@ -50,7 +50,7 @@ async def fetch_homepage_section(slug: str):
         return None
 
 async def fetch_content_blocks():
-    query = f"""
+    query = textwrap.dedent(f"""
     *[_type == "contentBlock"] | order(order asc){{
         _id,
         title,
@@ -63,7 +63,7 @@ async def fetch_content_blocks():
         callToActionUrl,
         order
     }}
-    """
+    """)
     url_params = {"query": query}
 
     print(f"DEBUG: Sanity GROQ Query (content blocks): {query}")
@@ -92,7 +92,7 @@ async def fetch_content_blocks():
         return []
 
 async def fetch_categories():
-    query = f"""
+    query = textwrap.dedent(f"""
     *[_type == "category"] | order(order asc){{
         _id,
         title,
@@ -102,7 +102,7 @@ async def fetch_categories():
         "alt": image.alt,
         order
     }}
-    """
+    """)
     url_params = {"query": query}
 
     print(f"DEBUG: Sanity GROQ Query (categories): {query}")
@@ -128,28 +128,27 @@ async def fetch_categories():
         return []
     except Exception as e:
         print(f"An unexpected error occurred while fetching categories: {e}")
-        return []
+        return None
 
-# <<<<< ADD THIS NEW FUNCTION FOR FEATURED PRODUCTS >>>>>
 async def fetch_featured_products():
     """
     Fetches published 'product' documents marked as 'isFeatured' from Sanity CMS.
     """
-    query = f"""
+    query = textwrap.dedent(f"""
     *[_type == "product" && isFeatured == true] | order(_createdAt desc){{
         _id,
         name,
-        slug,
+        "slug": slug.current,
         price,
         description,
-        category,
+        "categoryTitle": category->title,
         "imageUrl": mainImage.asset->url,
         "alt": mainImage.alt,
         stock,
         isFeatured,
         sku
     }}
-    """
+    """)
     url_params = {"query": query}
 
     print(f"DEBUG: Sanity GROQ Query (featured products): {query}")
@@ -175,11 +174,125 @@ async def fetch_featured_products():
         return []
     except Exception as e:
         print(f"An unexpected error occurred while fetching featured products: {e}")
+        return None
+
+async def fetch_all_products(category_slug: Optional[str] = None):
+    """
+    Fetches all published 'product' documents from Sanity CMS,
+    optionally filtered by category slug.
+    """
+    # Base query for all products
+    query_template = """
+    *[_type == "product"]{
+        _id,
+        name,
+        "slug": slug.current,
+        price,
+        description,
+        category->{
+            _id,
+            title,
+            "slug": slug.current
+        },
+        "imageUrl": mainImage.asset->url,
+        "alt": mainImage.alt,
+        stock,
+        isFeatured,
+        sku
+    }
+    """
+    # If a category slug is provided, add a filter
+    if category_slug:
+        query_template = f"""
+        *[_type == "product" && category->slug.current == "{category_slug}"]{{
+            _id,
+            name,
+            "slug": slug.current,
+            price,
+            description,
+            category->{{"_id", title, "slug": slug.current}},
+            "imageUrl": mainImage.asset->url,
+            "alt": mainImage.alt,
+            stock,
+            isFeatured,
+            sku
+        }}
+        """
+    query = textwrap.dedent(query_template)
+    url_params = {"query": query}
+    print(f"DEBUG: Sanity GROQ Query (all products/category filtered): {query}")
+
+    try:
+        response = await sanity_client.get("/", params=url_params)
+        print(f"DEBUG: Sanity API Response Status (all products/category filtered): {response.status_code}")
+        print(f"DEBUG: Sanity API Response Body (all products/category filtered): {response.text}")
+
+        if response.status_code == 200:
+            result = response.json().get("result", [])
+            print(f"DEBUG: Sanity API Raw Result (all products/category filtered): {result}")
+            return result
+        else:
+            print(f"ERROR: Sanity API request failed (all products/category filtered): {response.text}")
+            return []
+    except httpx.HTTPStatusError as exc:
+        print(f"HTTP Error fetching products: {exc.response.status_code} - {exc.response.text}")
         return []
+    except httpx.RequestError as exc:
+        print(f"Network Error fetching products: {exc.request.url} - {exc}")
+        return []
+    except Exception as e:
+        print(f"An unexpected error occurred while fetching products: {e}")
+        return []
+
+async def fetch_product_by_slug(product_slug: str):
+    """
+    Fetches a single published 'product' document by its slug from Sanity CMS.
+    """
+    query = textwrap.dedent(f"""
+    *[_type == "product" && slug.current == "{product_slug}"][0]{{
+        _id,
+        name,
+        "slug": slug.current,
+        price,
+        description,
+        category->{{"_id", title, "slug": slug.current}},
+        "imageUrl": mainImage.asset->url,
+        "alt": mainImage.alt,
+        stock,
+        isFeatured,
+        sku
+    }}
+    """)
+    url_params = {"query": query}
+    print(f"DEBUG: Sanity GROQ Query (single product by slug): {query}")
+
+    try:
+        response = await sanity_client.get("/", params=url_params)
+        print(f"DEBUG: Sanity API Response Status (single product by slug): {response.status_code}")
+        print(f"DEBUG: Sanity API Response Body (single product by slug): {response.text}")
+
+        if response.status_code == 200:
+            result = response.json().get("result", None)
+            print(f"DEBUG: Sanity API Raw Result (single product by slug): {result}")
+            return result
+        else:
+            print(f"ERROR: Sanity API request failed (single product by slug): {response.text}")
+            return None
+    except httpx.HTTPStatusError as exc:
+        print(f"HTTP Error fetching single product by slug: {exc.response.status_code} - {exc.response.text}")
+        return []
+    except httpx.RequestError as exc:
+        print(f"Network Error fetching single product by slug: {exc.request.url} - {exc}")
+        return []
+    except Exception as e:
+        print(f"An unexpected error occurred while fetching single product by slug: {e}")
+        return None
 
 
 async def fetch_static_promos():
-    query = '*[_type == "promo"]{title, description, discount, validUntil, "imageUrl": image.asset->url}'
+    query = textwrap.dedent(f"""
+    *[_type == "promo"]{{title, description, discount, validUntil, "imageUrl": image.asset->url}}
+    """)
     url_params = {"query": query}
     
     print(f"DEBUG: Sanity GROQ Query (promos): {query}")

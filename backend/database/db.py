@@ -1,39 +1,87 @@
+# import os
+# from supabase import Client, create_client
+# from config.settings import settings
+# from sqlmodel.ext.asyncio.session import AsyncSession
+# from sqlmodel import SQLModel # No need for create_engine here if only using async_engine
+# from sqlalchemy.ext.asyncio import create_async_engine
+# from sqlalchemy.orm import sessionmaker
+# from typing import AsyncGenerator
+
+# # Initialize Supabase clients
+# supabase_public: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+# supabase_admin: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.SUPABASE_SECRET_KEY)
+
+# # Use create_async_engine for asynchronous database operations
+# connection_string = str(settings.DATABASE_URL.replace('postgresql', 'postgresql+asyncpg'))
+
+# # IMPORTANT CHANGES HERE: Added pool_pre_ping and pool_recycle
+# async_engine = create_async_engine(
+#     connection_string,
+#     echo=True,
+#     future=True,
+#     connect_args={"statement_cache_size": 0}, # This disables statement caching for asyncpg
+#     pool_pre_ping=True, # Ensures connections in the pool are alive
+#     pool_recycle=3600 # Recycles connections after 1 hour to prevent stale connections (adjust as needed)
+# )
+
+# # Define an async sessionmaker
+# AsyncSessionLocal = sessionmaker(
+#     async_engine, class_=AsyncSession, expire_on_commit=False
+# )
+
+# # MODIFIED: create_db_tables now uses async_engine.begin() directly for DDL
+# async def create_db_tables():
+#     async with async_engine.begin() as conn: # Start an async connection
+#         await conn.run_sync(SQLModel.metadata.create_all) # Run synchronous metadata creation in async context
+#     # print("DEBUG: SQLModel.metadata.create_all completed.")
+
+# # get_session must provide an AsyncSession
+# async def get_session() -> AsyncGenerator[AsyncSession, None]:
+#     async with AsyncSessionLocal() as session:
+#         yield session
+
 import os
 from supabase import Client, create_client
 from config.settings import settings
-# REMOVE import psycopg2 # No longer needed
-# MODIFIED: Import AsyncSession and create_async_engine
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import SQLModel, create_engine # Keep create_engine for now, but will transition
-from sqlalchemy.ext.asyncio import create_async_engine # <<<<< IMPORTANT: New import
-from sqlalchemy.orm import sessionmaker # Needed for async sessionmaker
+from sqlmodel import SQLModel
+from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy.orm import sessionmaker
+from typing import AsyncGenerator
 
-# Initialize Supabase clients (these are fine as they are meant to be async with httpx)
+# Initialize Supabase clients
 supabase_public: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.NEXT_PUBLIC_SUPABASE_ANON_KEY)
 supabase_admin: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.SUPABASE_SECRET_KEY)
 
+# Use create_async_engine for asynchronous database operations
+# Replace 'postgresql' with 'postgresql+asyncpg' to use asyncpg driver
+connection_string = str(settings.DIRECT_URL.replace('postgresql', 'postgresql+asyncpg'))
 
-# MODIFIED: Use create_async_engine for asynchronous database operations
-connection_string = str(settings.DATABASE_URL.replace('postgresql',
-                                                           'postgresql+asyncpg')) # Retain asyncpg
+# Best Practice: Configure asyncpg to disable statement caching and manage connection pooling
+async_engine = create_async_engine(
+    connection_string,
+    echo=True, # Set to False in production for less verbose logs
+    future=True,
+    # Crucial for PgBouncer/Supavisor transaction mode: disable prepared statement cache
+    connect_args={"statement_cache_size": 0},
+    # Recommended for pooled connections:
+    pool_pre_ping=True, # Pings connections before use to ensure they are alive
+    pool_recycle=3600 # Recycles connections after 1 hour (3600 seconds) to prevent stale connections
+)
 
-async_engine = create_async_engine(connection_string, echo=True, future=True) # <<<<< IMPORTANT: Use create_async_engine
-
-# MODIFIED: Define an async sessionmaker
+# Define an async sessionmaker
 AsyncSessionLocal = sessionmaker(
     async_engine, class_=AsyncSession, expire_on_commit=False
 )
 
-# MODIFIED: create_db_tables must now be asynchronous and use the async_engine
+# Function to create database tables
 async def create_db_tables():
-    async with async_engine.begin() as conn: # Start an async connection
-        await conn.run_sync(SQLModel.metadata.create_all) # Run synchronous metadata creation in async context
+    # DDL operations (like create_all) should use the engine's connection directly
+    async with async_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
     # print("DEBUG: SQLModel.metadata.create_all completed.")
 
-# MODIFIED: get_session must provide an AsyncSession
-from typing import AsyncGenerator
-
+# Dependency to get an async session
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    async with AsyncSessionLocal() as session: # Use the async sessionmaker
+    async with AsyncSessionLocal() as session:
         yield session
-
