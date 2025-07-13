@@ -19,8 +19,12 @@ export default function ShopPage() {
       setError(null);
       try {
         // Pass the category slug to the API function if it exists
-        const fetchedProducts = await getProducts(categorySlug || undefined); 
+        // The getProducts function in api.tsx already handles constructing the URL
+        // with ?category= if the 'category' argument is provided.
+        const fetchedProducts = await getProducts(categorySlug || undefined);
         setProducts(fetchedProducts);
+        // Add a log here to see what products were fetched for the category
+        console.log(`Fetched products for category '${categorySlug}':`, fetchedProducts);
       } catch (err: any) {
         console.error('Failed to fetch products:', err);
         setError(err.message || 'Failed to load products.');

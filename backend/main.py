@@ -332,3 +332,5 @@ async def get_orders(user_id: str):
     except Exception as e:
         logger.error(f"ERROR: Failed to fetch orders for user {user_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve orders: {str(e)}")
+
+

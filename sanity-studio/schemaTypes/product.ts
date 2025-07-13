@@ -35,19 +35,12 @@ export default defineType({
       type: 'array',
       of: [{ type: 'block' }],
     }),
+    // MODIFIED: Changed 'category' from string to reference
     defineField({
       name: 'category',
       title: 'Category',
-      type: 'string', // This should ideally be a reference to your 'category' schema
-      options: {
-        list: [ // You can hardcode categories here or fetch them dynamically if using a reference
-          { title: 'Bottles', value: 'bottles' },
-          { title: 'Shilajit', value: 'shilajit' },
-          { title: 'Premium Pillows', value: 'premium-pillows' },
-          { title: 'Shoe Charms', value: 'shoe-charms' },
-          { title: 'TV Brackets', value: 'tv-brackets' },
-        ],
-      },
+      type: 'reference', // <<< CHANGED TO 'reference'
+      to: [{ type: 'category' }], // <<< Specifies that it refers to documents of type 'category'
       validation: (Rule) => Rule.required(),
     }),
     defineField({
@@ -72,7 +65,6 @@ export default defineType({
       validation: (Rule) => Rule.required().min(0).integer(),
       initialValue: 0,
     }),
-    // <<<<< ADD THIS NEW FIELD >>>>>
     defineField({
       name: 'isFeatured',
       title: 'Is Featured Product?',
@@ -91,7 +83,7 @@ export default defineType({
   preview: {
     select: {
       title: 'name',
-      subtitle: 'category',
+      subtitle: 'category.title', // <<< MODIFIED: Access the title of the referenced category
       media: 'mainImage',
     },
     prepare(value: Record<string, any>, viewOptions?: PrepareViewOptions): PreviewValue {

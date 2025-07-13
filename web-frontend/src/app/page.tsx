@@ -17,7 +17,7 @@ import ProductCard from '@/components/ProductCard';
 export default function HomePage() {
   const [benefitsSection, setBenefitsSection] = useState<HomepageSectionContent | null>(null);
   const [loadingBenefits, setLoadingBenefits] = useState(true);
-  
+
   const [contentBlocks, setContentBlocks] = useState<ContentBlockData[]>([]);
   const [loadingContentBlocks, setLoadingContentBlocks] = useState(true);
 
@@ -30,7 +30,7 @@ export default function HomePage() {
   const [hasMounted, setHasMounted] = useState(false);
 
   useEffect(() => {
-    setHasMounted(true);
+    setHasMounted(true); // This sets hasMounted to true on the client side after initial render
 
     async function fetchPageData() {
       // Fetch Homepage Section (e.g., Hydrogen Water Benefits)
@@ -88,9 +88,15 @@ export default function HomePage() {
     fetchPageData();
   }, []);
 
-  // Hydration fix: Render a placeholder or the server-rendered content until client-side mount
-  if (!hasMounted) {
-    return (
+  // Remove the !hasMounted check here. The content should always be rendered.
+  // The hydration mismatch is likely coming from something else, or this pattern
+  // itself is causing it if the server-rendered HTML for the hero is different
+  // from the client-rendered HTML.
+  // For now, let's ensure the content is always present.
+
+  return (
+    <>
+      {/* Hero Section - This will be the first thing users see */}
       <div className="relative w-full h-[calc(100vh-4rem)] flex items-center justify-center text-white overflow-hidden">
         <Image
           src="/images/hero-main.jpg"
@@ -100,7 +106,7 @@ export default function HomePage() {
           priority
           className="absolute inset-0 z-0"
         />
-        {/* Content overlay for text and button */}
+        {/* Content overlay for text and button - THIS IS WHERE THE CONTENT GOES NOW */}
         <div className="relative z-10 text-center px-4 max-w-3xl mx-auto flex flex-col items-center justify-center">
           <h1 className="text-2xl md:text-4xl font-extrabold leading-tight mb-4 drop-shadow-lg">
             Feel the Difference in Every Drop
@@ -114,27 +120,6 @@ export default function HomePage() {
           >
             Shop Now
           </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <>
-      {/* Hero Section - This will be the first thing users see */}
-      {/* REMOVED LINK WRAPPER FROM THE ENTIRE HERO SECTION */}
-      <div className="relative w-full h-[calc(100vh-4rem)] flex items-center justify-center text-white overflow-hidden">
-        <Image
-          src="/images/hero-main.jpg"
-          alt="Hydrogenie Hero"
-          fill
-          style={{ objectFit: 'cover' }}
-          priority
-          className="absolute inset-0 z-0"
-        />
-        {/* Content overlay for text and button */}
-        <div className="relative z-10 text-center px-4 max-w-3xl mx-auto flex flex-col items-center justify-center">
-          
         </div>
       </div>
 
