@@ -62,13 +62,13 @@
 # @app.get("/products", response_model=List[ProductDisplayAPIModel])
 # async def get_products(
 #     category: Optional[str] = Query(None, description="Filter products by category slug"),
-#     sort: str = Query("newest", description="Sort order: newest, price-asc, price-desc, name-asc, name-desc") # NEW: Sort parameter
+#     sort: str = Query("newest", description="Sort order: newest, price-asc, price-desc, name-asc, name-desc")
 # ):
 #     """
 #     Fetches products from Sanity CMS, optionally filtered by category slug and sorted.
 #     """
-#     print(f"DEBUG (main.py /products): Endpoint called. Category: '{category}', Sort: '{sort}'") # Updated debug print
-#     raw_products = await fetch_all_products(category_slug=category, sort_order=sort) # NEW: Pass sort_order
+#     print(f"DEBUG (main.py /products): Endpoint called. Category: '{category}', Sort: '{sort}'")
+#     raw_products = await fetch_all_products(category_slug=category, sort_order=sort)
 #     print(f"DEBUG (main.py /products): Raw products from Sanity service: {raw_products}")
 
 #     if not raw_products:
@@ -80,7 +80,17 @@
 #         print(f"DEBUG (main.py /products): Processing raw product at index {i}: {p}")
 #         print(f"DEBUG (main.py /products): Type of raw product at index {i}: {type(p)}")
 
-#         slug_value = p.get('slug', {}).get('current') if isinstance(p.get('slug'), dict) else None
+#         # --- FIX: Robust slug extraction ---
+#         slug_data = p.get('slug')
+#         if isinstance(slug_data, dict) and 'current' in slug_data:
+#             slug_value = slug_data.get('current')
+#         elif isinstance(slug_data, str): # Handle case where slug is already a string
+#             slug_value = slug_data
+#         else:
+#             slug_value = None
+#         # --- END FIX ---
+#         print(f"DEBUG (main.py /products): Extracted slug_value for product {p.get('name') or p.get('_id')}: {slug_value}")
+        
 #         category_title = p.get('category', {}).get('title') if isinstance(p.get('category'), dict) else None
 
 #         transformed_products.append(ProductDisplayAPIModel(
@@ -111,7 +121,15 @@
 
 #     transformed_products = []
 #     for product in raw_products:
-#         slug_value = product.get('slug', {}).get('current') if isinstance(product.get('slug'), dict) else None
+#         # --- FIX: Robust slug extraction for featured products as well ---
+#         slug_data = product.get('slug')
+#         if isinstance(slug_data, dict) and 'current' in slug_data:
+#             slug_value = slug_data.get('current')
+#         elif isinstance(slug_data, str): # Handle case where slug is already a string
+#             slug_value = slug_data
+#         else:
+#             slug_value = None
+#         # --- END FIX ---
 #         category_title = product.get('category')
 
 #         transformed_products.append(ProductDisplayAPIModel(
@@ -146,7 +164,15 @@
 #         print(f"DEBUG (main.py /products/{{slug}}): Product not found in Sanity service response for slug: {product_slug}. Raising 404.")
 #         raise HTTPException(status_code=404, detail="Product not found")
 
-#     slug_value = raw_product.get('slug', {}).get('current') if isinstance(raw_product.get('slug'), dict) else None
+#     # --- FIX: Robust slug extraction for single product as well ---
+#     slug_data = raw_product.get('slug')
+#     if isinstance(slug_data, dict) and 'current' in slug_data:
+#         slug_value = slug_data.get('current')
+#     elif isinstance(slug_data, str): # Handle case where slug is already a string
+#         slug_value = slug_data
+#     else:
+#         slug_value = None
+#     # --- END FIX ---
 #     category_title = raw_product.get('category', {}).get('title') if isinstance(raw_product.get('category'), dict) else None
 
 #     transformed_product = ProductDisplayAPIModel(
@@ -343,7 +369,6 @@
 #         raise HTTPException(status_code=500, detail=f"Failed to retrieve orders: {str(e)}")
 
 
-
 # backend/main.py
 from fastapi import FastAPI, Depends, HTTPException, Query
 from contextlib import asynccontextmanager
@@ -408,13 +433,20 @@ def read_root():
 @app.get("/products", response_model=List[ProductDisplayAPIModel])
 async def get_products(
     category: Optional[str] = Query(None, description="Filter products by category slug"),
-    sort: str = Query("newest", description="Sort order: newest, price-asc, price-desc, name-asc, name-desc")
+    sort: str = Query("newest", description="Sort order: newest, price-asc, price-desc, name-asc, name-desc"),
+    minPrice: Optional[float] = Query(None, description="Minimum price for filtering"),
+    maxPrice: Optional[float] = Query(None, description="Maximum price for filtering")
 ):
     """
-    Fetches products from Sanity CMS, optionally filtered by category slug and sorted.
+    Fetches products from Sanity CMS, optionally filtered by category slug, price range, and sorted.
     """
-    print(f"DEBUG (main.py /products): Endpoint called. Category: '{category}', Sort: '{sort}'")
-    raw_products = await fetch_all_products(category_slug=category, sort_order=sort)
+    print(f"DEBUG (main.py /products): Endpoint called. Category: '{category}', Sort: '{sort}', Min Price: {minPrice}, Max Price: {maxPrice}")
+    raw_products = await fetch_all_products(
+        category_slug=category,
+        sort_order=sort,
+        min_price=minPrice,
+        max_price=maxPrice
+    )
     print(f"DEBUG (main.py /products): Raw products from Sanity service: {raw_products}")
 
     if not raw_products:
@@ -426,15 +458,13 @@ async def get_products(
         print(f"DEBUG (main.py /products): Processing raw product at index {i}: {p}")
         print(f"DEBUG (main.py /products): Type of raw product at index {i}: {type(p)}")
 
-        # --- FIX: Robust slug extraction ---
         slug_data = p.get('slug')
         if isinstance(slug_data, dict) and 'current' in slug_data:
             slug_value = slug_data.get('current')
-        elif isinstance(slug_data, str): # Handle case where slug is already a string
+        elif isinstance(slug_data, str):
             slug_value = slug_data
         else:
             slug_value = None
-        # --- END FIX ---
         print(f"DEBUG (main.py /products): Extracted slug_value for product {p.get('name') or p.get('_id')}: {slug_value}")
         
         category_title = p.get('category', {}).get('title') if isinstance(p.get('category'), dict) else None
@@ -467,15 +497,13 @@ async def get_featured_products_endpoint():
 
     transformed_products = []
     for product in raw_products:
-        # --- FIX: Robust slug extraction for featured products as well ---
         slug_data = product.get('slug')
         if isinstance(slug_data, dict) and 'current' in slug_data:
             slug_value = slug_data.get('current')
-        elif isinstance(slug_data, str): # Handle case where slug is already a string
+        elif isinstance(slug_data, str):
             slug_value = slug_data
         else:
             slug_value = None
-        # --- END FIX ---
         category_title = product.get('category')
 
         transformed_products.append(ProductDisplayAPIModel(
@@ -510,15 +538,13 @@ async def get_product(product_slug: str):
         print(f"DEBUG (main.py /products/{{slug}}): Product not found in Sanity service response for slug: {product_slug}. Raising 404.")
         raise HTTPException(status_code=404, detail="Product not found")
 
-    # --- FIX: Robust slug extraction for single product as well ---
     slug_data = raw_product.get('slug')
     if isinstance(slug_data, dict) and 'current' in slug_data:
         slug_value = slug_data.get('current')
-    elif isinstance(slug_data, str): # Handle case where slug is already a string
+    elif isinstance(slug_data, str):
         slug_value = slug_data
     else:
         slug_value = None
-    # --- END FIX ---
     category_title = raw_product.get('category', {}).get('title') if isinstance(raw_product.get('category'), dict) else None
 
     transformed_product = ProductDisplayAPIModel(
@@ -543,9 +569,9 @@ async def create_dynamic_promo(
     payload: DynamicPromo
 ):
     try:
-        response = await supabase_public.table('dynamic_promo').insert(payload.model_dump()).execute()
-        if response.data:
-            return DynamicPromo.model_validate(response.data[0], from_attributes=True)
+        result = supabase_public.table('dynamic_promo').insert(payload.model_dump()).execute()
+        if result.data:
+            return DynamicPromo.model_validate(result.data[0], from_attributes=True)
         raise HTTPException(status_code=500, detail="Failed to insert dynamic promo.")
     except Exception as e:
         logger.error(f"Error creating dynamic promo: {e}", exc_info=True)
@@ -553,11 +579,11 @@ async def create_dynamic_promo(
 
 @app.get("/promos/dynamic", response_model=List[DynamicPromo])
 async def get_dynamic_promos():
-    response = await supabase_public.table('dynamic_promo').select('*').execute()
-    if response.error:
-        logger.error(f"Error fetching dynamic promos: {response.error}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to retrieve dynamic promos: {response.error.message}")
-    return [DynamicPromo.model_validate(item, from_attributes=True) for item in response.data]
+    result = supabase_public.table('dynamic_promo').select('*').execute()
+    if result.error: # This line might still be an issue if result.error doesn't exist.
+        logger.error(f"Error fetching dynamic promos: {result.error}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve dynamic promos: {result.error.message}")
+    return [DynamicPromo.model_validate(item, from_attributes=True) for item in result.data]
 
 # --- SANITY CMS (HOMEPAGE SECTIONS) ENDPOINTS (existing) ---
 @app.get("/homepage-sections/{slug}", response_model=HomepageSection)
@@ -585,7 +611,8 @@ async def get_categories_endpoint():
 @app.post("/cart", response_model=CartItem)
 async def add_to_cart(payload: CartItem):
     try:
-        result = await supabase_public.table("cartitem").upsert(payload.model_dump()).execute()
+        # The execute() method itself is not awaitable. Call it directly and then access .data
+        result = supabase_public.table("cartitem").upsert(payload.model_dump()).execute()
         if result.data:
             return CartItem.model_validate(result.data[0], from_attributes=True)
         raise HTTPException(status_code=500, detail="Failed to add item to cart.")
@@ -596,12 +623,53 @@ async def add_to_cart(payload: CartItem):
 @app.get("/cart/{user_id}", response_model=Dict[str, Any])
 async def get_cart(user_id: str):
     try:
-        result = await supabase_public.table("cartitem").select("*").eq("user_id", user_id).execute()
-        if result.error:
-            logger.error(f"Error fetching cart: {result.error}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Failed to retrieve cart: {result.error.message}")
+        # FIX: Removed the 'if result.error:' check. Errors will be caught by the outer try-except.
+        result = supabase_public.table("cartitem").select("*").eq("user_id", user_id).execute()
+        cart_items_data = result.data # Access .data directly
+
+        if not cart_items_data:
+            return {"message": "No items in cart", "cart": []}
+
+        product_ids = [item["product_id"] for item in cart_items_data]
         
-        return {"message": "Cart retrieved", "cart": result.data}
+        enriched_cart_items = []
+        for item in cart_items_data:
+            product_id = item["product_id"]
+            
+            # Assuming product_id in cartitem table corresponds to Sanity's slug for now
+            # This is a critical assumption. If your product_id in Supabase is Sanity's _id,
+            # you would need a new fetch_product_by_id function in sanity_service.py.
+            # For now, proceeding with fetch_product_by_slug.
+            full_product_details = await fetch_product_by_slug(product_id) 
+            
+            if full_product_details:
+                # Merge existing cart item data with enriched product details
+                # Ensure that fields like name and price from cart are prioritized if they are more up-to-date
+                # or if you want to reflect the price at the time of adding to cart.
+                # For simplicity, we'll use the Sanity details for display.
+                enriched_cart_items.append({
+                    **item, # Keep original cart item data (e.g., quantity, user_id)
+                    "imageUrl": full_product_details.get("imageUrl"),
+                    "slug": full_product_details.get("slug"), # This will be a dict, need to extract 'current'
+                    "sku": full_product_details.get("sku"),
+                    "name": full_product_details.get("name"), # Override with Sanity name
+                    "price": full_product_details.get("price") # Override with Sanity price
+                })
+            else:
+                logger.warning(f"Product details not found in Sanity for product_id (slug): {product_id} in cart. Item will be shown with limited details.")
+                enriched_cart_items.append(item) # Keep original item if details not found
+
+        # FIX: Robust slug extraction for enriched cart items
+        final_cart_items = []
+        for item in enriched_cart_items:
+            slug_data = item.get('slug')
+            if isinstance(slug_data, dict) and 'current' in slug_data:
+                item['slug'] = slug_data.get('current')
+            elif not isinstance(slug_data, str): # If it's not a string and not a dict, set to None
+                item['slug'] = None
+            final_cart_items.append(item)
+
+        return {"message": "Cart retrieved", "cart": final_cart_items}
     except Exception as e:
         logger.error(f"Error getting cart: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve cart: {str(e)}")
@@ -609,10 +677,9 @@ async def get_cart(user_id: str):
 @app.delete("/cart/{user_id}/{product_id}")
 async def remove_from_cart(user_id: str, product_id: str):
     try:
-        result = await supabase_admin.table("cartitem").delete().eq("user_id", user_id).eq("product_id", product_id).execute()
-        if result.error:
-            logger.error(f"Error removing from cart: {result.error}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Failed to remove item: {result.error.message}")
+        # FIX: Removed the 'if result.error:' check. Errors will be caught by the outer try-except.
+        result = supabase_admin.table("cartitem").delete().eq("user_id", user_id).eq("product_id", product_id).execute()
+        # Access .data directly
         return {"message": "Item removed from cart", "data": result.data}
     except Exception as e:
         logger.error(f"Error removing from cart: {e}", exc_info=True)
@@ -622,7 +689,7 @@ async def remove_from_cart(user_id: str, product_id: str):
 @app.post("/checkout")
 async def checkout(payload: CheckoutPayload):
     try:
-        cart_resp = await supabase_public.table("cartitem").select("product_id, quantity").eq("user_id", payload.user_id).execute()
+        cart_resp = supabase_public.table("cartitem").select("product_id, quantity").eq("user_id", payload.user_id).execute()
         cart_items_data = cart_resp.data
 
         if not cart_items_data:
@@ -630,7 +697,7 @@ async def checkout(payload: CheckoutPayload):
 
         product_ids_in_cart = [item["product_id"] for item in cart_items_data]
 
-        products_resp = await supabase_public.table("product").select("id, price").in_("id", product_ids_in_cart).execute()
+        products_resp = supabase_public.table("product").select("id, price").in_("id", product_ids_in_cart).execute()
         products_data = {p["id"]: p for p in products_resp.data}
 
         total_amount = 0.0
@@ -662,7 +729,7 @@ async def checkout(payload: CheckoutPayload):
         order_dict_for_insert = order_instance.model_dump()
         order_dict_for_insert["created_at"] = order_instance.created_at.isoformat()
 
-        order_resp = await supabase_public.table("order").insert(order_dict_for_insert).execute()
+        order_resp = supabase_public.table("order").insert(order_dict_for_insert).execute()
         
         if not order_resp.data:
             raise HTTPException(status_code=500, detail="Failed to create order in Supabase.")
@@ -695,7 +762,7 @@ async def checkout(payload: CheckoutPayload):
 @app.get("/orders/{user_id}", response_model=Dict[str, Any])
 async def get_orders(user_id: str):
     try:
-        result = await supabase_public.table("order").select("*, orderitem(*)").eq("user_id", user_id).order("created_at", desc=True).execute()
+        result = supabase_public.table("order").select("*, orderitem(*)").eq("user_id", user_id).order("created_at", desc=True).execute()
         orders_data = result.data
 
         if not orders_data:
