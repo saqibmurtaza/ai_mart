@@ -165,3 +165,4 @@ export async function getFeaturedProducts(): Promise<Product[]> {
 }
 
 // ... Add other API functions like for cart, checkout, orders here ...
+
