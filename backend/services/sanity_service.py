@@ -116,49 +116,51 @@ async def fetch_featured_products():
         print(f"Error fetching featured products: {e}")
         return None
 
-async def fetch_all_products(category_slug: Optional[str] = None):
+async def fetch_all_products(category_slug: Optional[str] = None, sort_order: str = "newest"): # NEW: sort_order parameter added here
     """
-    Fetches all products, optionally filtered by category slug.
+    Fetches all products, optionally filtered by category slug and sorted.
     """
+    filter_clause = ""
     if category_slug:
-        query = textwrap.dedent(f"""
-        *[_type == "product" && category->slug.current == "{category_slug}"]{{
-            _id,
-            name,
-            "slug": slug.current,
-            price,
-            description,
-            category->{{_id, title, "slug": slug.current}},
-            "imageUrl": mainImage.asset->url,
-            "alt": mainImage.alt,
-            stock,
-            isFeatured,
-            sku
-        }}
-        """)
-    else:
-        query = textwrap.dedent("""
-        *[_type == "product"]{
-            _id,
-            name,
-            "slug": slug.current,
-            price,
-            description,
-            category->{
-                _id,
-                title,
-                "slug": slug.current
-            },
-            "imageUrl": mainImage.asset->url,
-            "alt": mainImage.alt,
-            stock,
-            isFeatured,
-            sku
-        }
-        """)
+        filter_clause = f" && category->slug.current == \"{category_slug}\""
+
+    order_clause = ""
+    if sort_order == "newest":
+        order_clause = " | order(_createdAt desc)"
+    elif sort_order == "price-asc":
+        order_clause = " | order(price asc)"
+    elif sort_order == "price-desc":
+        order_clause = " | order(price desc)"
+    elif sort_order == "name-asc":
+        order_clause = " | order(name asc)"
+    elif sort_order == "name-desc":
+        order_clause = " | order(name desc)"
+    # Default is no order_clause if 'newest' or unrecognized, but we explicitly set 'newest' above.
+
+    query = textwrap.dedent(f"""
+    *[_type == "product"{filter_clause}]{order_clause}{{
+        _id,
+        name,
+        "slug": slug.current,
+        price,
+        description,
+        category->{{_id, title, "slug": slug.current}},
+        "imageUrl": mainImage.asset->url,
+        "alt": mainImage.alt,
+        stock,
+        isFeatured,
+        sku
+    }}
+    """)
     url_params = {"query": query}
     try:
+        # --- DEBUGGING PRINTS ADDED BELOW ---
+        print(f"DEBUG (sanity_service.py): fetch_all_products called. Category slug: '{category_slug}', Sort order: '{sort_order}'")
+        print(f"DEBUG (sanity_service.py): GROQ query for all products: {query}")
         response = await sanity_client.get("/", params=url_params)
+        print(f"DEBUG (sanity_service.py): Sanity API Response Status (all products): {response.status_code}")
+        print(f"DEBUG (sanity_service.py): Sanity API Response Body (all products): {response.text}") # IMPORTANT: Raw response from Sanity
+        # --- END DEBUGGING PRINTS ---
         if response.status_code == 200:
             return response.json().get("result", [])
         else:
@@ -166,7 +168,7 @@ async def fetch_all_products(category_slug: Optional[str] = None):
             return []
     except Exception as e:
         print(f"Error fetching all products: {e}")
-        return None
+        return []
 
 async def fetch_product_by_slug(product_slug: str):
     """
@@ -189,13 +191,11 @@ async def fetch_product_by_slug(product_slug: str):
     """)
     url_params = {"query": query}
     try:
-        # --- DEBUGGING PRINTS ADDED BELOW ---
         print(f"DEBUG (sanity_service.py): fetch_product_by_slug called for slug: '{product_slug}'")
         print(f"DEBUG (sanity_service.py): GROQ query: {query}")
         response = await sanity_client.get("/", params=url_params)
-        print(f"DEBUG (sanity_service.py): Sanity API Response Status: {response.status_code}")
-        print(f"DEBUG (sanity_service.py): Sanity API Response Body: {response.text}") # IMPORTANT: Raw response from Sanity
-        # --- END DEBUGGING PRINTS ---
+        print(f"DEBUG (sanity_service.py): Sanity API Response Status (single product): {response.status_code}")
+        print(f"DEBUG (sanity_service.py): Sanity API Response Body (single product): {response.text}") # IMPORTANT: Raw response from Sanity
         if response.status_code == 200:
             return response.json().get("result", None)
         else:
