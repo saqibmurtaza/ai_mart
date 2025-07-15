@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import { getCart, addToCart, removeFromCart, Product } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
-// Placeholder for user ID. In a real app, this would come from authentication.
+// Placeholder for user ID. In a real app, get this from authentication.
 const MOCK_USER_ID = 'user_123';
 
 interface CartItemData {
@@ -33,35 +33,27 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [cartItems, setCartItems] = useState<CartItemData[]>([]);
-  const [loadingCart, setLoadingCart] = useState(true);
+  const [loadingCart, setLoadingCart] = useState<boolean>(true);
   const [errorCart, setErrorCart] = useState<string | null>(null);
 
   const cartItemCount = cartItems.reduce((count, item) => count + item.quantity, 0);
-  const cartTotal = cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const cartTotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
 
-  const fetchCart = useCallback(async () => {
-    console.log("DEBUG (CartContext): Initiating cart fetch...");
+  const fetchCart = useCallback(async (): Promise<void> => {
     setLoadingCart(true);
     setErrorCart(null);
     try {
       const response = await getCart(MOCK_USER_ID);
-      console.log("DEBUG (CartContext): getCart API response received:", response);
-      
-      // Ensure response.cart is an array before setting state
       if (response && Array.isArray(response.cart)) {
         setCartItems(response.cart);
-        console.log("DEBUG (CartContext): Cart items successfully set:", response.cart);
       } else {
-        console.warn("DEBUG (CartContext): getCart API response did not contain an array for 'cart'. Setting empty array.");
-        setCartItems([]); // Fallback to empty array if response.cart is not an array
+        setCartItems([]);
       }
     } catch (err: any) {
-      console.error('DEBUG (CartContext): Error during cart fetch:', err);
       setErrorCart(err.message || 'Failed to load cart.');
-      setCartItems([]); // Ensure cart is empty on error
+      setCartItems([]);
     } finally {
       setLoadingCart(false);
-      console.log("DEBUG (CartContext): Cart fetch completed. Loading state set to false.");
     }
   }, []);
 
@@ -69,146 +61,157 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     fetchCart();
   }, [fetchCart]);
 
-  const addItemToCart = useCallback(async (product: Product, quantity: number = 1) => {
-    console.log(`DEBUG (CartContext): Attempting to add ${quantity} of ${product.name} (ID: ${product.slug || product.id}) to cart.`);
-    try {
-      const productIdToUse = product.slug || product.id;
+  const addItemToCart = useCallback(
+    async (product: Product, quantity: number = 1): Promise<void> => {
+      // 1. Snapshot the current state for rollback if API fails
+      const previousCartItems = [...cartItems];
+
+      // Determine product ID to use (slug or generic id)
+      const productIdToUse = product.slug || (product as any).id;
       if (!productIdToUse) {
-        console.error("DEBUG (CartContext): Product has no valid slug or ID for cart operation.", product);
         toast.error(`Cannot add ${product.name} to cart: Missing ID.`);
         return;
       }
 
-      const existingItem = cartItems.find(item => item.product_id === productIdToUse);
-      const newQuantity = existingItem ? existingItem.quantity + quantity : quantity;
+      // 2. Optimistic Update: Update UI state immediately
+      setCartItems(currentItems => {
+        const existingItemIndex = currentItems.findIndex(
+          item => item.product_id === productIdToUse
+        );
 
-      // Optimistic update
-      setCartItems(prevItems => {
-        console.log("DEBUG (CartContext): Optimistic update - prevItems:", prevItems);
-        let updatedItems;
-        if (existingItem) {
-          updatedItems = prevItems.map(item =>
-            item.product_id === productIdToUse
-              ? { ...item, quantity: newQuantity }
-              : item
-          );
+        if (existingItemIndex > -1) {
+          // Item exists, update quantity optimistically
+          const updatedItems = [...currentItems];
+          updatedItems[existingItemIndex] = {
+            ...updatedItems[existingItemIndex],
+            quantity: updatedItems[existingItemIndex].quantity + quantity,
+          };
+          return updatedItems;
         } else {
-          updatedItems = [
-            ...prevItems,
+          // New item, add to cart optimistically
+          return [
+            ...currentItems,
             {
-              user_id: MOCK_USER_ID,
               product_id: productIdToUse,
               name: product.name,
               price: product.price,
               quantity: quantity,
               imageUrl: product.imageUrl,
               slug: product.slug,
-              sku: product.sku
-            }
+              sku: product.sku,
+            },
           ];
         }
-        console.log("DEBUG (CartContext): Optimistic update - newItems:", updatedItems);
-        return updatedItems;
       });
-      toast.success(`${product.name} added to cart!`);
+      toast.success(`${product.name} added to cart!`); // Show success message immediately
 
-      const apiResponse = await addToCart({
-        user_id: MOCK_USER_ID,
-        product_id: productIdToUse,
-        name: product.name,
-        price: product.price,
-        quantity: newQuantity,
-        imageUrl: product.imageUrl,
-        slug: product.slug,
-        sku: product.sku
-      });
-      console.log("DEBUG (CartContext): addToCart API response:", apiResponse);
-      // Re-fetch to ensure consistency after API call
-      await fetchCart();
-      console.log("DEBUG (CartContext): Cart re-fetched after addItemToCart.");
-    } catch (error: any) {
-      console.error('DEBUG (CartContext): Error adding to cart:', error);
-      toast.error(`Failed to add ${product.name} to cart: ${error.message}`);
-      await fetchCart(); // Revert optimistic update by re-fetching
-      console.log("DEBUG (CartContext): Cart re-fetched to revert after addItemToCart error.");
-    }
-  }, [cartItems, fetchCart]); // Keep cartItems in dependency array for accurate existingItem check
+      try {
+        // 3. Call the backend API
+        await addToCart({
+          user_id: MOCK_USER_ID,
+          product_id: productIdToUse,
+          name: product.name,
+          price: product.price,
+          quantity: quantity, // Quantity to add/set for the backend
+          imageUrl: product.imageUrl,
+          slug: product.slug,
+          sku: product.sku,
+        });
 
-  const updateItemQuantity = useCallback(async (productId: string, newQuantity: number) => {
-    console.log(`DEBUG (CartContext): Attempting to update quantity for ${productId} to ${newQuantity}.`);
-    if (newQuantity <= 0) {
-      await removeItemFromCart(productId);
-      return;
-    }
+        // 4. After successful API call, re-fetch to ensure consistency (especially for new items with backend-assigned IDs or complex price calculations)
+        await fetchCart();
+      } catch (error: any) {
+        toast.error(`Failed to add ${product.name} to cart: ${error.message}`);
+        // 5. Rollback on failure: Revert UI to previous state
+        setCartItems(previousCartItems);
+        // And then fetch actual state from backend to be safe
+        await fetchCart();
+      }
+    },
+    [cartItems, fetchCart]
+  );
 
-    const existingItem = cartItems.find(item => item.product_id === productId);
-    if (!existingItem) {
-      toast.error("Item not found in cart to update quantity.");
-      console.log(`DEBUG (CartContext): Item ${productId} not found for quantity update.`);
-      return;
-    }
+  const updateItemQuantity = useCallback(
+    async (productId: string, newQuantity: number): Promise<void> => {
+      if (newQuantity <= 0) {
+        await removeItemFromCart(productId);
+        return;
+      }
 
-    // Optimistic update
-    setCartItems(prevItems => {
-      const updatedItems = prevItems.map(item =>
-        item.product_id === productId ? { ...item, quantity: newQuantity } : item
+      // 1. Snapshot the current state for rollback
+      const previousCartItems = [...cartItems];
+      const existingItem = previousCartItems.find(item => item.product_id === productId);
+
+      if (!existingItem) {
+        toast.error('Item not found in cart to update quantity.');
+        return;
+      }
+
+      // 2. Optimistic Update
+      setCartItems(currentItems =>
+        currentItems.map(item =>
+          item.product_id === productId ? { ...item, quantity: newQuantity } : item
+        )
       );
-      console.log("DEBUG (CartContext): Optimistic update quantity - newItems:", updatedItems);
-      return updatedItems;
-    });
-    toast.success(`Quantity updated for ${existingItem.name}.`);
+      toast.success(`Quantity updated for ${existingItem.name}.`); // Show success message immediately
 
-    try {
-      const apiResponse = await addToCart({ // addToCart handles updates
-        user_id: MOCK_USER_ID,
-        product_id: productId,
-        name: existingItem.name,
-        price: existingItem.price,
-        quantity: newQuantity,
-        imageUrl: existingItem.imageUrl,
-        slug: existingItem.slug,
-        sku: existingItem.sku
-      });
-      console.log("DEBUG (CartContext): updateItemQuantity API response:", apiResponse);
-      await fetchCart(); // Re-fetch to ensure consistency
-      console.log("DEBUG (CartContext): Cart re-fetched after updateItemQuantity.");
-    } catch (error: any) {
-      console.error('DEBUG (CartContext): Error updating cart item quantity:', error);
-      toast.error(`Failed to update quantity for ${existingItem.name}: ${error.message}`);
-      await fetchCart(); // Revert optimistic update
-      console.log("DEBUG (CartContext): Cart re-fetched to revert after updateItemQuantity error.");
-    }
-  }, [cartItems, fetchCart]);
+      try {
+        // 3. Call the backend API
+        await addToCart({
+          user_id: MOCK_USER_ID,
+          product_id: productId,
+          name: existingItem.name,
+          price: existingItem.price,
+          quantity: newQuantity,
+          imageUrl: existingItem.imageUrl,
+          slug: existingItem.slug,
+          sku: existingItem.sku,
+        });
 
-  const removeItemFromCart = useCallback(async (productId: string) => {
-    console.log(`DEBUG (CartContext): Attempting to remove item ${productId} from cart.`);
-    const existingItem = cartItems.find(item => item.product_id === productId);
-    if (!existingItem) {
-      toast.error("Item not found in cart to remove.");
-      console.log(`DEBUG (CartContext): Item ${productId} not found for removal.`);
-      return;
-    }
+        // 4. After successful API call, re-fetch to ensure consistency
+        await fetchCart();
+      } catch (error: any) {
+        toast.error(`Failed to update quantity for ${existingItem.name}: ${error.message}`);
+        // 5. Rollback on failure
+        setCartItems(previousCartItems);
+        await fetchCart(); // Re-fetch to get the true state if optimistic failed
+      }
+    },
+    [fetchCart, cartItems]
+  );
 
-    // Optimistic update
-    setCartItems(prevItems => {
-      const updatedItems = prevItems.filter(item => item.product_id !== productId);
-      console.log("DEBUG (CartContext): Optimistic remove - newItems:", updatedItems);
-      return updatedItems;
-    });
-    toast.success(`${existingItem.name} removed from cart.`);
+  const removeItemFromCart = useCallback(
+    async (productId: string): Promise<void> => {
+      // 1. Snapshot the current state for rollback
+      const previousCartItems = [...cartItems];
+      const existingItem = previousCartItems.find(item => item.product_id === productId);
 
-    try {
-      const apiResponse = await removeFromCart(MOCK_USER_ID, productId);
-      console.log("DEBUG (CartContext): removeFromCart API response:", apiResponse);
-      await fetchCart(); // Re-fetch to ensure consistency
-      console.log("DEBUG (CartContext): Cart re-fetched after removeItemFromCart.");
-    } catch (error: any) {
-      console.error('DEBUG (CartContext): Error removing cart item:', error);
-      toast.error(`Failed to remove ${existingItem.name} from cart: ${error.message}`);
-      await fetchCart(); // Revert optimistic update
-      console.log("DEBUG (CartContext): Cart re-fetched to revert after removeItemFromCart error.");
-    }
-  }, [cartItems, fetchCart]);
+      if (!existingItem) {
+        toast.error('Item not found in cart to remove.');
+        return;
+      }
+
+      // 2. Optimistic Update
+      setCartItems(currentItems =>
+        currentItems.filter(item => item.product_id !== productId)
+      );
+      toast.success(`${existingItem.name} removed from cart.`); // Show success message immediately
+
+      try {
+        // 3. Call the backend API
+        await removeFromCart(MOCK_USER_ID, productId);
+
+        // 4. After successful API call, re-fetch to ensure consistency
+        await fetchCart();
+      } catch (error: any) {
+        toast.error(`Failed to remove ${existingItem.name} from cart: ${error.message}`);
+        // 5. Rollback on failure
+        setCartItems(previousCartItems);
+        await fetchCart(); // Re-fetch to get the true state if optimistic failed
+      }
+    },
+    [fetchCart, cartItems]
+  );
 
   const contextValue: CartContextType = {
     cartItems,
