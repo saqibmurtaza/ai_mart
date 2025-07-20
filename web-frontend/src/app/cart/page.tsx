@@ -1,92 +1,54 @@
+// src/app/cart/page.tsx
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { getCart, addToCart, removeFromCart, CartItem } from '@/lib/api'; // Import CartItem interface
-import { Product } from '@/lib/api'; // Import Product interface for type consistency
-
-// Placeholder for user ID. In a real app, this would come from authentication.
-const MOCK_USER_ID = 'user_123'; // Replace with dynamic user ID from auth later
+// Import useCart hook from your CartContext
+import { useCart } from '@/context/CartContext';
+import { toast } from 'react-hot-toast'; // Assuming you have react-hot-toast for notifications
 
 export default function CartPage() {
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [cartTotal, setCartTotal] = useState(0);
+  // Use the cart state and functions directly from CartContext
+  const { 
+    cartItems, 
+    cartItemCount, // From context, though not directly used in this rendering for total count, good for consistency
+    cartTotal, 
+    loadingCart, // Renamed from 'loading' for clarity with context
+    errorCart,   // Renamed from 'error' for clarity with context
+    fetchCart,   // To re-fetch if needed (e.g., initial load, or error recovery)
+    updateItemQuantity, // Use context's update function
+    removeItemFromCart  // Use context's remove function
+  } = useCart();
 
-  // Function to fetch cart data
-  const fetchCart = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await getCart(MOCK_USER_ID);
-      setCartItems(response.cart);
-      // Calculate total
-      const total = response.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      setCartTotal(total);
-    } catch (err: any) {
-      console.error('Failed to fetch cart:', err);
-      setError(err.message || 'Failed to load cart.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Fetch cart on component mount
+  // Fetch cart on component mount (this is handled by CartProvider's useEffect,
+  // but keeping it here for explicit re-fetch if needed, or if CartProvider isn't parent)
+  // However, since CartProvider handles the initial fetch, this useEffect is mostly redundant here
+  // if CartPage is always wrapped by CartProvider.
+  // For robustness, we can keep a simple fetch call here as a safeguard or initial load.
   useEffect(() => {
-    fetchCart();
-  }, [fetchCart]);
-
-  // Handle quantity change
-  const handleQuantityChange = useCallback(async (item: CartItem, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      // If quantity is 0 or less, remove the item
-      await handleRemoveItem(item.product_id);
-      return;
+    // Only fetch if cartItems are not loaded and not already loading
+    if (cartItems.length === 0 && !loadingCart && !errorCart) {
+      fetchCart();
     }
-    
-    // Optimistic update
-    setCartItems(prevItems => prevItems.map(cartItem => 
-      cartItem.product_id === item.product_id ? { ...cartItem, quantity: newQuantity } : cartItem
-    ));
+  }, [cartItems.length, loadingCart, errorCart, fetchCart]);
 
-    try {
-      // Call API to update quantity
-      await addToCart({
-        user_id: MOCK_USER_ID,
-        product_id: item.product_id,
-        name: item.name,
-        price: item.price,
-        quantity: newQuantity,
-      });
-      // Re-fetch to ensure consistency, or update state from response if API returns updated item
-      await fetchCart(); 
-    } catch (err: any) {
-      console.error('Failed to update cart item quantity:', err);
-      setError(err.message || 'Failed to update item quantity.');
-      // Revert optimistic update if API call fails
-      await fetchCart(); 
-    }
-  }, [fetchCart]);
 
-  // Handle item removal
+  // Handlers now directly call functions from useCart context
+  const handleQuantityChange = useCallback(async (productId: string, newQuantity: number) => {
+    // The optimistic update and API call logic is now handled inside CartContext's updateItemQuantity
+    await updateItemQuantity(productId, newQuantity);
+    // toast messages are also handled by CartContext
+  }, [updateItemQuantity]);
+
   const handleRemoveItem = useCallback(async (productId: string) => {
-    // Optimistic update
-    setCartItems(prevItems => prevItems.filter(item => item.product_id !== productId));
+    // The optimistic update and API call logic is now handled inside CartContext's removeItemFromCart
+    await removeItemFromCart(productId);
+    // toast messages are also handled by CartContext
+  }, [removeItemFromCart]);
 
-    try {
-      await removeFromCart(MOCK_USER_ID, productId);
-      await fetchCart(); // Re-fetch to ensure consistency
-    } catch (err: any) {
-      console.error('Failed to remove cart item:', err);
-      setError(err.message || 'Failed to remove item from cart.');
-      // Revert optimistic update if API call fails
-      await fetchCart(); // Re-fetch to restore state
-    }
-  }, [fetchCart]);
 
-  if (loading) {
+  if (loadingCart) { // Use loadingCart from context
     return (
       <div className="flex justify-center items-center h-screen">
         <p className="text-xl text-gray-600">Loading cart...</p>
@@ -94,10 +56,10 @@ export default function CartPage() {
     );
   }
 
-  if (error) {
+  if (errorCart) { // Use errorCart from context
     return (
       <div className="flex justify-center items-center h-screen">
-        <p className="text-xl text-red-600">Error: {error}</p>
+        <p className="text-xl text-red-600">Error: {errorCart}</p>
       </div>
     );
   }
@@ -128,8 +90,6 @@ export default function CartPage() {
               <div key={item.product_id} className="grid grid-cols-1 md:grid-cols-[1fr_2fr_1fr_1fr_0.5fr] gap-4 py-4 border-b border-gray-100 items-center">
                 {/* Product Image & Link */}
                 <div className="flex items-center gap-4">
-                  {/* Assuming you have a way to get product image/slug from cart item or fetch it */}
-                  {/* For now, using a placeholder image */}
                   <div className="relative w-20 h-20 flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
                     <Image
                       src={item.imageUrl || `https://placehold.co/80x80/e2e8f0/64748b?text=No+Image`}
@@ -147,7 +107,6 @@ export default function CartPage() {
                 {/* Product Details (can be expanded) */}
                 <div>
                   <p className="text-gray-600 text-sm">SKU: {item.sku || 'N/A'}</p>
-                  {/* Add more details here if available in CartItem */}
                 </div>
 
                 {/* Price */}
@@ -158,7 +117,7 @@ export default function CartPage() {
                 {/* Quantity Controls */}
                 <div className="flex items-center justify-center gap-2">
                   <button
-                    onClick={() => handleQuantityChange(item, item.quantity - 1)}
+                    onClick={() => handleQuantityChange(item.product_id, item.quantity - 1)} // Pass product_id
                     className="bg-gray-200 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-300 transition-colors"
                     aria-label={`Decrease quantity of ${item.name}`}
                   >
@@ -166,7 +125,7 @@ export default function CartPage() {
                   </button>
                   <span className="font-medium text-lg">{item.quantity}</span>
                   <button
-                    onClick={() => handleQuantityChange(item, item.quantity + 1)}
+                    onClick={() => handleQuantityChange(item.product_id, item.quantity + 1)} // Pass product_id
                     className="bg-gray-200 text-gray-700 px-3 py-1 rounded-md hover:bg-gray-300 transition-colors"
                     aria-label={`Increase quantity of ${item.name}`}
                   >
@@ -196,7 +155,8 @@ export default function CartPage() {
               <span>Total:</span>
               <span>${cartTotal.toFixed(2)}</span>
             </div>
-            <Link href="/checkout" passHref>
+            {/* FIX: Changed href to point directly to the shipping page */}
+            <Link href="/checkout/shipping" passHref>
               <button className="w-full bg-green-600 text-white py-3 rounded-md text-lg font-semibold hover:bg-green-700 transition-colors duration-200">
                 Proceed to Checkout
               </button>

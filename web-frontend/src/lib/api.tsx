@@ -243,3 +243,29 @@ export async function removeFromCart(userId: string, productId: string): Promise
 }
 
 // ... Add other API functions like for checkout, orders here ...
+
+// In lib/api.tsx - add this function:
+
+// In lib/api.tsx - ensure this function exists and matches the payload
+export async function checkout(orderData: any): Promise<any> {
+  console.log('Placing order:', orderData);
+  try {
+    const response = await fetch(`${FASTAPI_URL}/checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(orderData),
+    });
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+    }
+    const data = await response.json();
+    return data; // Expecting { "order_id": "..." } or similar
+  } catch (error: any) {
+    console.error('Error during checkout:', error);
+    throw new Error(`Failed to process checkout: ${error.message}`);
+  }
+}
+// Make sure it's exported correctly, like the other functions (e.g., getCart, addToCart, removeFromCart).
