@@ -238,3 +238,4 @@ async def fetch_static_promos():
     except Exception as e:
         print(f"Error fetching promos: {e}")
         return None
+

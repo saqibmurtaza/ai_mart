@@ -1,271 +1,210 @@
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || 'http://localhost:8000';
+// src/lib/api.ts
 
-if (!FASTAPI_URL) {
-  throw new Error('Missing NEXT_PUBLIC_FASTAPI_URL environment variable. Please set it in .env.local');
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
+
+// --- GENERAL & HOMEPAGE TYPES AND FUNCTIONS ---
+
+export interface Category {
+  _id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  imageUrl?: string;
+}
+
+export interface ContentBlock {
+  _id: string; // Sanity document ID
+  title: string;
+  content: string; // Can be Markdown or HTML
+  imageUrl?: string;
+  subtitle?: string;
+  description?: any;
+  alt?: string;
+  imageLeft?: boolean;
+  callToActionText?: string;
+  callToActionUrl?: string;
+  order?: number;
+}
+
+export interface HomepageSection {
+  id: string;
+  title: string;
+  layout_style: 'hero' | 'featured_products' | 'content_grid';
+  content: ContentBlock[];
+  products?: Product[];
+  imageUrl?: string;
+  alt?: string;
+  description?: any;
+}
+
+export async function getCategories(): Promise<Category[]> {
+  const response = await fetch(`${FASTAPI_URL}/categories`);
+  if (!response.ok) throw new Error("Failed to fetch categories");
+  return response.json();
+}
+
+export async function getContentBlocks(): Promise<ContentBlock[]> {
+  const response = await fetch(`${FASTAPI_URL}/content-blocks`);
+  if (!response.ok) throw new Error("Failed to fetch content blocks");
+  return response.json();
+}
+
+export async function getHomepageSection(slug: string): Promise<HomepageSection> {
+  const response = await fetch(`${FASTAPI_URL}/homepage/sections/${slug}`);
+  if (!response.ok) throw new Error(`Failed to fetch homepage section: ${slug}`);
+  return response.json();
+}
+
+// --- PRODUCT TYPES AND FUNCTIONS ---
+
+export interface ProductImage {
+  url: string;
+  description: string;
 }
 
 export interface Product {
+  _id: string; // Sanity document ID
   id: string;
   name: string;
-  description?: any; // <<<<< CHANGED TO 'any' for PortableText compatibility >>>>>
-  price: number;
-  stock: number;
-  category?: string;
-  imageUrl?: string;
-  alt?: string; // <<<<< ADDED 'alt' property >>>>>
-  slug?: string; // Ensure slug is also here, as it's used for linking
-  isFeatured?: boolean; // Ensure this is also here for consistency
-  sku?: string; // Ensure this is also here for consistency
-}
-
-export interface CartItem {
-  user_id: string;
-  product_id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  imageUrl?: string; // NEW: Added for cart display
-  slug?: string;     // NEW: Added for cart display
-  sku?: string;      // NEW: Added for cart display
-}
-
-export interface HomepageSectionContent {
-  title: string;
-  description: any; // Portable Text
-  imageUrl?: string;
-  alt?: string;
-}
-
-export interface ContentBlockData {
-  _id: string;
-  title: string;
-  subtitle?: string;
-  description: any; // Portable Text
-  imageUrl?: string;
-  alt?: string;
-  imageLeft: boolean; // For alternating layout
-  callToActionText?: string;
-  callToActionUrl?: string;
-  order: number;
-}
-
-export interface CategoryData {
-  _id: string; // Add _id for consistency with Sanity documents
-  title: string;
   slug: string;
-  description?: any; // Portable Text (optional)
-  imageUrl?: string;
-  alt?: string;
-  order: number;
+  description: string;
+  price: number;
+  category: string;
+  images?: ProductImage[];
+  stock: number;
+  imageUrl?: string; 
+  sku?: string; 
+  alt?: string; 
 }
 
-
-// --- API Functions ---
-
-export async function getProducts(
-  category?: string,
-  sortOrder: string = 'newest',
-  minPrice?: number,
-  maxPrice?: number
-): Promise<Product[]> {
-  console.log(`Fetching products from FastAPI with category: '${category}', sort: '${sortOrder}', minPrice: '${minPrice}', maxPrice: '${maxPrice}'`);
-  try {
-    const params = new URLSearchParams();
-    if (category) {
-      params.append('category', category);
-    }
-    params.append('sort', sortOrder);
-
-    if (minPrice !== undefined) {
-      params.append('minPrice', minPrice.toString());
-    }
-    if (maxPrice !== undefined) {
-      params.append('maxPrice', maxPrice.toString());
-    }
-
-    const url = `${FASTAPI_URL}/products?${params.toString()}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data: Product[] = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error('Error fetching products:', error);
-    throw new Error(`Failed to fetch products: ${error.message}`);
-  }
+export async function getProducts(): Promise<Product[]> {
+    const response = await fetch(`${FASTAPI_URL}/products`);
+    if (!response.ok) throw new Error("Failed to fetch products");
+    return response.json();
 }
 
-export async function getProduct(slug: string): Promise<Product | undefined> {
-  console.log(`Fetching product ${slug} from FastAPI...`);
-  try {
+export async function getProductBySlug(slug: string): Promise<Product> {
     const response = await fetch(`${FASTAPI_URL}/products/${slug}`);
-    if (response.status === 404) {
-      return undefined;
-    }
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data: Product = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error(`Error fetching product ${slug}:`, error);
-    throw new Error(`Failed to fetch product: ${error.message}`);
-  }
-}
-
-export async function getHomepageSection(slug: string): Promise<HomepageSectionContent | undefined> {
-  console.log(`Fetching homepage section '${slug}' from FastAPI...`);
-  try {
-    const response = await fetch(`${FASTAPI_URL}/homepage-sections/${slug}`); 
-    
-    if (response.status === 404) {
-      return undefined;
-    }
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data: HomepageSectionContent = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error(`Error fetching homepage section ${slug}:`, error);
-    throw new Error(`Failed to fetch homepage section: ${error.message}`);
-  }
-}
-
-export async function getContentBlocks(): Promise<ContentBlockData[]> {
-  console.log('Fetching content blocks from FastAPI...');
-  try {
-    const response = await fetch(`${FASTAPI_URL}/content-blocks`);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data: ContentBlockData[] = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error('Error fetching content blocks:', error);
-    throw new Error(`Failed to fetch content blocks: ${error.message}`);
-  }
-}
-
-export async function getCategories(): Promise<CategoryData[]> {
-  console.log('Fetching categories from FastAPI...');
-  try {
-    const response = await fetch(`${FASTAPI_URL}/categories`);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data: CategoryData[] = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error('Error fetching categories:', error);
-    throw new Error(`Failed to fetch categories: ${error.message}`);
-  }
+    if (!response.ok) throw new Error("Failed to fetch product");
+    return response.json();
 }
 
 export async function getFeaturedProducts(): Promise<Product[]> {
-  console.log('Fetching featured products from FastAPI...');
-  try {
     const response = await fetch(`${FASTAPI_URL}/products/featured`);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data: Product[] = await response.json();
-    console.log("Frontend: Fetched featured products data:", data);
-    return data;
-  } catch (error: any) {
-    console.error('Error fetching featured products:', error);
-    throw new Error(`Failed to fetch featured products: ${error.message}`);
-  }
+    if (!response.ok) throw new Error("Failed to fetch featured products");
+    return response.json();
 }
 
-// --- CART API Functions ---
-export async function getCart(userId: string): Promise<{ message: string; cart: CartItem[] }> {
-  console.log(`Fetching cart for user: ${userId}`);
-  try {
-    const response = await fetch(`${FASTAPI_URL}/cart/${userId}`);
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error(`Error fetching cart for user ${userId}:`, error);
-    throw new Error(`Failed to fetch cart: ${error.message}`);
-  }
+// --- CART TYPES AND FUNCTIONS ---
+
+export interface CartItem {
+  product_id: string;
+  quantity: number;
+  name: string;
+  price: number;
+  imageUrl?: string;
+  slug?: string;
+  sku?: string;
 }
 
-export async function addToCart(item: CartItem): Promise<CartItem> {
-  console.log('Adding/updating item in cart:', item);
-  try {
-    const response = await fetch(`${FASTAPI_URL}/cart`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(item),
+export interface Cart {
+  cart: CartItem[];
+  total_price: number;
+}
+
+export interface AddToCartPayload {
+  user_id: string;
+  product_id: string;
+  quantity: number;
+  name: string;      // Add this
+  price: number;     // Add this
+  imageUrl?: string; // Add this
+  slug?: string;     // Add this
+  sku?: string;      // Add this
+}
+
+export async function getCart(userId: string): Promise<Cart> {
+  const response = await fetch(`${FASTAPI_URL}/cart/${userId}`);
+  if (!response.ok) throw new Error("Failed to fetch cart");
+  return response.json();
+}
+
+export async function addToCart(payload: AddToCartPayload): Promise<any> {
+  const response = await fetch(`${FASTAPI_URL}/cart`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) throw new Error("Failed to add to cart");
+  return response.json();
+}
+
+export async function removeFromCart(userId: string, productId: string): Promise<any> {
+    const response = await fetch(`${FASTAPI_URL}/cart/remove/${userId}/${productId}`, {
+        method: 'DELETE',
     });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data: CartItem = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error('Error adding to cart:', error);
-    throw new Error(`Failed to add item to cart: ${error.message}`);
-  }
+    if (!response.ok) throw new Error("Failed to remove from cart");
+    return response.json();
 }
 
-export async function removeFromCart(userId: string, productId: string): Promise<{ message: string }> {
-  console.log(`Removing item ${productId} from cart for user ${userId}`);
-  try {
-    const response = await fetch(`${FASTAPI_URL}/cart/${userId}/${productId}`, {
-      method: 'DELETE',
+export async function updateCartItemQuantity(userId: string, productId: string, quantity: number): Promise<any> {
+    const response = await fetch(`${FASTAPI_URL}/cart/update/${userId}/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ quantity }),
     });
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data;
-  } catch (error: any) {
-    console.error(`Error removing item ${productId} from cart:`, error);
-    throw new Error(`Failed to remove item from cart: ${error.message}`);
-  }
+    if (!response.ok) throw new Error("Failed to update item quantity");
+    return response.json();
 }
 
-// ... Add other API functions like for checkout, orders here ...
+// --- CHECKOUT AND ORDER FUNCTIONS ---
 
-// In lib/api.tsx - add this function:
+export interface CheckoutPayload {
+    user_id: string;
+    shipping_address: string;
+}
 
-// In lib/api.tsx - ensure this function exists and matches the payload
-export async function checkout(orderData: any): Promise<any> {
-  console.log('Placing order:', orderData);
-  try {
+export interface Order {
+    id: string;
+    user_id: string;
+    shipping_address: {
+        full_name: string;
+        address_line1: string;
+        city: string;
+        state_province: string;
+        postal_code: string;
+        country: string;
+    };
+    total_amount: number;
+    status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+    created_at: string;
+    items: CartItem[];
+}
+
+export async function checkout(payload: CheckoutPayload): Promise<{ order_id: string }> {
     const response = await fetch(`${FASTAPI_URL}/checkout`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(orderData),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
     });
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ detail: 'An unknown error occurred.' }));
+        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
     }
-    const data = await response.json();
-    return data; // Expecting { "order_id": "..." } or similar
-  } catch (error: any) {
-    console.error('Error during checkout:', error);
-    throw new Error(`Failed to process checkout: ${error.message}`);
-  }
+    return response.json();
 }
-// Make sure it's exported correctly, like the other functions (e.g., getCart, addToCart, removeFromCart).
+
+export async function getOrders(userId: string): Promise<Order[]> {
+    try {
+        const response = await fetch(`${FASTAPI_URL}/orders/${userId}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    } catch (error: any) {
+        throw new Error(`Failed to fetch orders: ${error.message}`);
+    }
+}
+

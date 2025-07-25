@@ -1,11 +1,8 @@
-// This file aggregates all your individual schemas into a single array.
-
-import product from './product'
-import promo from './promo'
-import homepageSection from './homepageSection';
-import contentBlock from './contentBlock';
 import category from './category';
+import contentBlock from './contentBlock';
+import homepageSection from './homepageSection';
+import product from './product';
+import promo from './promo';
+import user from './user';
 
-export const schemaTypes = [product, promo, homepageSection, contentBlock, category]
-
-import { Rule, defineType, defineField } from 'sanity';
+export const schemaTypes = [category, contentBlock, homepageSection, product, promo, user];

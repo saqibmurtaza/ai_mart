@@ -4,10 +4,10 @@ import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PortableText } from '@portabletext/react';
-import type { ContentBlockData } from '@/lib/api'; // Import the interface
+import type { ContentBlock } from '@/lib/api'; // Import the interface
 
 interface ContentBlockProps {
-  data: ContentBlockData;
+  data: ContentBlock;
 }
 
 export default function ContentBlock({ data }: ContentBlockProps) {
@@ -25,7 +25,7 @@ export default function ContentBlock({ data }: ContentBlockProps) {
             height={400}
             className="rounded-lg shadow-md object-contain"
             sizes="(max-width: 768px) 100vw, 50vw" // Responsive image sizes
-            priority={data.order < 30} // Prioritize loading for first few blocks
+            priority={(data.order ?? 0) < 30} // Prioritize loading for first few blocks
           />
         </div>
       )}

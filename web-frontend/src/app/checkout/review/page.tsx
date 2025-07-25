@@ -97,7 +97,7 @@ export default function OrderReviewPage() {
           sku: item.sku,
           slug: item.slug,
         })),
-        shipping_address: {
+        shipping_address: JSON.stringify({
           full_name: shippingAddress.fullName,
           address_line1: shippingAddress.addressLine1,
           address_line2: shippingAddress.addressLine2,
@@ -106,7 +106,7 @@ export default function OrderReviewPage() {
           postal_code: shippingAddress.postalCode,
           country: shippingAddress.country,
           phone: shippingAddress.phone,
-        },
+        }),
         payment_method: paymentMethod,
         order_total: grandTotal, // Send calculated total, backend should also verify
         // Add other fields as per your backend's POST /checkout endpoint
@@ -128,7 +128,7 @@ export default function OrderReviewPage() {
         // Redirect to order success page
         router.push(`/checkout/success?orderId=${response.order_id}`);
       } else {
-        throw new Error(response?.message || 'Failed to place order.');
+        throw new Error('Failed to place order.');
       }
     } catch (err: any) {
       console.error('Checkout error:', err);

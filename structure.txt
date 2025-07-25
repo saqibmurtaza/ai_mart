@@ -1,0 +1,136 @@
+ai_mart/
+├── README.md
+├── backend/
+│   ├── README.md
+│   ├── config/
+│   │   ├── __init__.py
+│   │   ├── settings.py
+│   ├── database/
+│   │   ├── __init__.py
+│   │   ├── db.py
+│   ├── generate_id.py
+│   ├── hello.py
+│   ├── main.py
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── models.py
+│   ├── pyproject.toml
+│   ├── services/
+│   │   ├── sanity_service.py
+│   ├── uv.lock
+├── chatbot/
+│   ├── README.md
+│   ├── app.py
+│   ├── chainlit.md
+│   ├── hello.py
+│   ├── pyproject.toml
+├── package-lock.json
+├── package.json
+├── sanity-studio/
+│   ├── README.md
+│   ├── aimart/
+│   │   ├── README.md
+│   │   ├── eslint.config.mjs
+│   │   ├── package-lock.json
+│   │   ├── package.json
+│   │   ├── sanity.cli.ts
+│   │   ├── sanity.config.ts
+│   │   ├── schemaTypes/
+│   │   │   ├── index.ts
+│   │   ├── static/
+│   │   ├── tsconfig.json
+│   ├── ecommerce_backup.tar.gz
+│   ├── eslint.config.mjs
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── sanity.cli.ts
+│   ├── sanity.config.ts
+│   ├── schemaTypes/
+│   │   ├── category.ts
+│   │   ├── contentBlock.ts
+│   │   ├── homepageSection.ts
+│   │   ├── index.ts
+│   │   ├── product.ts
+│   │   ├── promo.ts
+│   ├── static/
+│   ├── tsconfig.json
+├── tree.py
+├── web-frontend/
+│   ├── README.md
+│   ├── eslint.config.mjs
+│   ├── next-env.d.ts
+│   ├── next.config.ts
+│   ├── package-lock.json
+│   ├── package.json
+│   ├── postcss.config.mjs
+│   ├── public/
+│   │   ├── file.svg
+│   │   ├── globe.svg
+│   │   ├── images/
+│   │   │   ├── 600x400.svg
+│   │   │   ├── hero-main.jpg
+│   │   │   ├── placeholder-image.png
+│   │   ├── next.svg
+│   │   ├── vercel.svg
+│   │   ├── window.svg
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── api/
+│   │   │   │   ├── auth/
+│   │   │   │   │   ├── login/
+│   │   │   │   │   │   ├── route.ts
+│   │   │   │   │   ├── logout/
+│   │   │   │   │   │   ├── route.ts
+│   │   │   │   │   ├── oauth/
+│   │   │   │   │   │   ├── route.ts
+│   │   │   │   ├── revalidate/
+│   │   │   │   │   ├── route.ts
+│   │   │   ├── cart/
+│   │   │   │   ├── page.tsx
+│   │   │   ├── checkout/
+│   │   │   │   ├── page.tsx
+│   │   │   │   ├── payment/
+│   │   │   │   │   ├── page.tsx
+│   │   │   │   ├── review/
+│   │   │   │   │   ├── page.tsx
+│   │   │   │   ├── shipping/
+│   │   │   │   │   ├── page.tsx
+│   │   │   │   ├── success/
+│   │   │   │   │   ├── page.tsx
+│   │   │   ├── favicon.ico
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   ├── order_confirmation/
+│   │   │   │   ├── page.tsx
+│   │   │   ├── orders/
+│   │   │   │   ├── page.tsx
+│   │   │   ├── page.tsx
+│   │   │   ├── products/
+│   │   │   │   ├── [slug]/
+│   │   │   │   │   ├── page.tsx
+│   │   │   │   ├── page.tsx
+│   │   │   ├── studio/
+│   │   │   │   ├── [[...tool]]/
+│   │   │   │   │   ├── page.tsx
+│   │   ├── components/
+│   │   │   ├── CartDrawer.tsx
+│   │   │   ├── CategoryCard.tsx
+│   │   │   ├── ContentBlock.tsx
+│   │   │   ├── Footer.tsx
+│   │   │   ├── Navbar.tsx
+│   │   │   ├── ProductCard.tsx
+│   │   │   ├── ProductGrid.tsx
+│   │   │   ├── ui/
+│   │   │   │   ├── card.tsx
+│   │   ├── context/
+│   │   │   ├── CartContext.tsx
+│   │   ├── lib/
+│   │   │   ├── api.tsx
+│   │   │   ├── supabase.ts
+│   │   │   ├── utils.ts
+│   │   ├── middleware.ts
+│   │   ├── utils/
+│   │   │   ├── supabase/
+│   │   │   │   ├── client.ts
+│   │   │   │   ├── server.ts
+│   ├── tsconfig.json

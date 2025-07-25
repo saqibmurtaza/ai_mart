@@ -1,5 +1,24 @@
 {
+  "name": "aimart",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "web-frontend",
+    "sanity-studio"
+  ],
   "dependencies": {
+    "@sanity/client": "^7.8.1",
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.52.1",
+    "canvas-confetti": "^1.9.3",
     "react-hot-toast": "^2.5.2"
+  },
+  "scripts": {
+    "install-all": "npm install",
+    "dev:web": "cd web-frontend && npm run dev",
+    "dev:studio": "cd sanity-studio && sanity dev",
+    "build:web": "cd web-frontend && npm run build",
+    "build:studio": "cd sanity-studio && sanity build",
+    "deploy:studio": "cd sanity-studio && sanity deploy"
   }
 }

@@ -66,6 +66,7 @@ class Order(SQLModel, table=True):
     total_amount: float
     status: str = "pending"
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 class OrderItem(SQLModel, table=True):
     id: Optional[str] = Field(default_factory=generate_base64_uuid, primary_key=True)
     order_id: str
