@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
@@ -24,55 +24,98 @@ export default function CheckoutPage() {
   const [isUserLoading, setIsUserLoading] = useState(true);
   const { cartItems, cartTotal, loadingCart, errorCart, clearCart } = useCart();
   const router = useRouter();
+  const supabase = createClient();
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
+    email: '',
     addressLine1: '',
     city: '',
     state: '',
     zipCode: '',
     country: '',
   });
+  const [formErrors, setFormErrors] = useState<Partial<typeof formData>>({});
 
   useEffect(() => {
-    const supabase = createClient();
     const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
       setIsUserLoading(false);
+      if (user) {
+        setFormData(prev => ({
+          ...prev,
+          fullName: user.user_metadata?.name || '',
+          email: user.email || '',
+        }));
+      }
     };
     fetchUser();
   }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData((prevData) => ({
-      ...prevData,
-      [name]: value,
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormErrors(prev => ({ ...prev, [name]: '' }));
+  };
+
+  const validateForm = () => {
+    const errors: Partial<typeof formData> = {};
+    if (!formData.fullName.trim()) errors.fullName = 'Full name is required.';
+    if (!formData.email.trim() || !/\S+@\S+\.\S+/.test(formData.email)) errors.email = 'Valid email is required.';
+    if (!formData.addressLine1.trim()) errors.addressLine1 = 'Address is required.';
+    if (!formData.city.trim()) errors.city = 'City is required.';
+    if (!formData.state.trim()) errors.state = 'State is required.';
+    if (!formData.zipCode.trim()) errors.zipCode = 'Zip code is required.';
+    if (!formData.country.trim()) errors.country = 'Country is required.';
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleLogin = async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `http://localhost:3000/checkout`,
+      },
+    });
+    if (error) {
+      console.error('Login error:', error.message);
+      toast.error('Failed to initiate login.');
+    } else if (data.url) {
+      window.location.href = data.url;
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!user?.id) {
-      toast.error('You must be logged in to place an order.');
+    if (!validateForm()) {
+      toast.error('Please fix form errors before submitting.');
       return;
     }
-    setIsProcessing(true);
 
+    setIsProcessing(true);
     const shippingAddressString = [
       formData.fullName,
       formData.addressLine1,
       `${formData.city}, ${formData.state} ${formData.zipCode}`,
       formData.country,
-    ]
-      .filter(Boolean)
-      .join(', ');
+    ].filter(Boolean).join(', ');
 
     const orderPayload = {
-      user_id: user.id,
+      user_id: user?.id || null,
+      email: formData.email,
       shipping_address: shippingAddressString,
+      cart_items: cartItems.map(item => ({
+        product_id: item.product_id,
+        quantity: item.quantity,
+        price: item.price,
+        name: item.name,
+        imageUrl: item.imageUrl,
+        slug: item.slug,
+        sku: item.sku,
+      })),
     };
 
     try {
@@ -102,7 +145,7 @@ export default function CheckoutPage() {
         <h1 className="text-2xl font-bold mb-4">Error</h1>
         <p>Failed to load cart for checkout: {errorCart}</p>
         <Link href="/cart" className="mt-4 inline-block text-blue-600 hover:underline">
-          &larr; Back to Cart
+          ← Back to Cart
         </Link>
       </div>
     );
@@ -113,9 +156,32 @@ export default function CheckoutPage() {
       <div className="container mx-auto px-4 py-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Your Cart is Empty</h1>
         <p>Please add items to your cart before checking out.</p>
-        <Link href="/" className="mt-4 inline-block text-blue-600 hover:underline">
+        <Link href="/products" className="mt-4 inline-block text-blue-600 hover:underline">
           Continue Shopping
         </Link>
+      </div>
+    );
+  }
+
+  if (!user || user.id === 'guest') {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8 text-center">Checkout</h1>
+        <div className="bg-gray-50 p-6 rounded-lg text-center">
+          <h2 className="text-2xl font-semibold mb-4">Sign in or Continue as Guest</h2>
+          <button
+            onClick={handleLogin}
+            className="bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700 transition-colors mr-4"
+          >
+            Sign in with Google
+          </button>
+          <button
+            onClick={() => setUser({ id: 'guest', email: '' })}
+            className="bg-gray-200 text-gray-800 px-6 py-3 rounded-md hover:bg-gray-300 transition-colors"
+          >
+            Continue as Guest
+          </button>
+        </div>
       </div>
     );
   }
@@ -127,13 +193,95 @@ export default function CheckoutPage() {
         <div>
           <h2 className="text-2xl font-semibold mb-6">Shipping Information</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <input name="fullName" type="text" placeholder="Full Name" required className="input input-bordered w-full" onChange={handleChange} />
-            <input name="addressLine1" type="text" placeholder="Address Line 1" required className="input input-bordered w-full" onChange={handleChange} />
-            <input name="city" type="text" placeholder="City" required className="input input-bordered w-full" onChange={handleChange} />
-            <input name="state" type="text" placeholder="State/Province" required className="input input-bordered w-full" onChange={handleChange} />
-            <input name="zipCode" type="text" placeholder="Zip/Postal Code" required className="input input-bordered w-full" onChange={handleChange} />
-            <input name="country" type="text" placeholder="Country" required className="input input-bordered w-full" onChange={handleChange} />
-            <button type="submit" className="btn btn-primary w-full mt-6" disabled={isProcessing}>
+            <div>
+              <input
+                name="fullName"
+                type="text"
+                placeholder="Full Name"
+                value={formData.fullName}
+                onChange={handleChange}
+                className={`input input-bordered w-full ${formErrors.fullName ? 'border-red-500' : ''}`}
+                required
+              />
+              {formErrors.fullName && <p className="text-red-500 text-sm">{formErrors.fullName}</p>}
+            </div>
+            <div>
+              <input
+                name="email"
+                type="email"
+                placeholder="Email"
+                value={formData.email}
+                onChange={handleChange}
+                className={`input input-bordered w-full ${formErrors.email ? 'border-red-500' : ''}`}
+                required
+              />
+              {formErrors.email && <p className="text-red-500 text-sm">{formErrors.email}</p>}
+            </div>
+            <div>
+              <input
+                name="addressLine1"
+                type="text"
+                placeholder="Address Line 1"
+                value={formData.addressLine1}
+                onChange={handleChange}
+                className={`input input-bordered w-full ${formErrors.addressLine1 ? 'border-red-500' : ''}`}
+                required
+              />
+              {formErrors.addressLine1 && <p className="text-red-500 text-sm">{formErrors.addressLine1}</p>}
+            </div>
+            <div>
+              <input
+                name="city"
+                type="text"
+                placeholder="City"
+                value={formData.city}
+                onChange={handleChange}
+                className={`input input-bordered w-full ${formErrors.city ? 'border-red-500' : ''}`}
+                required
+              />
+              {formErrors.city && <p className="text-red-500 text-sm">{formErrors.city}</p>}
+            </div>
+            <div>
+              <input
+                name="state"
+                type="text"
+                placeholder="State/Province"
+                value={formData.state}
+                onChange={handleChange}
+                className={`input input-bordered w-full ${formErrors.state ? 'border-red-500' : ''}`}
+                required
+              />
+              {formErrors.state && <p className="text-red-500 text-sm">{formErrors.state}</p>}
+            </div>
+            <div>
+              <input
+                name="zipCode"
+                type="text"
+                placeholder="Zip/Postal Code"
+                value={formData.zipCode}
+                onChange={handleChange}
+                className={`input input-bordered w-full ${formErrors.zipCode ? 'border-red-500' : ''}`}
+                required
+              />
+              {formErrors.zipCode && <p className="text-red-500 text-sm">{formErrors.zipCode}</p>}
+            </div>
+            <div>
+              <input
+                name="country"
+                type="text"
+                placeholder="Country"
+                value={formData.country}
+                onChange={handleChange}
+                className={`input input-bordered w-full ${formErrors.country ? 'border-red-500' : ''}`}
+                required
+              />
+              {formErrors.country && <p className="text-red-500 text-sm">{formErrors.country}</p>}
+            </div>
+            <button
+              type="submit"
+              className="btn btn-primary w-full mt-6"
+              disabled={isProcessing}
+            >
               {isProcessing ? 'Placing Order...' : 'Place Order'}
             </button>
           </form>

@@ -4,22 +4,8 @@ import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { getProducts, getCategories, Product as ProductType, Category } from '@/lib/api';
 import ProductCard from '@/components/ProductCard';
-import Link from 'next/link';
-import { createClient } from '@/utils/supabase/client'; // Fixed import
-
-interface User {
-  id: string;
-  email?: string;
-  user_metadata?: {
-    name?: string;
-    picture?: string;
-    [key: string]: any;
-  };
-}
 
 export default function ShopPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [isUserLoading, setIsUserLoading] = useState(true);
   const router = useRouter();
   const searchParams = useSearchParams();
   const currentCategorySlug = searchParams.get('category') || '';
@@ -34,16 +20,6 @@ export default function ShopPage() {
 
   const [minPriceInput, setMinPriceInput] = useState(currentMinPrice);
   const [maxPriceInput, setMaxPriceInput] = useState(currentMaxPrice);
-
-  useEffect(() => {
-    const supabase = createClient();
-    const fetchUser = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      setUser(user);
-      setIsUserLoading(false);
-    };
-    fetchUser();
-  }, []);
 
   const updateSearchParams = useCallback((newCategory: string, newSort: string, newMinPrice: string, newMaxPrice: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -130,22 +106,6 @@ export default function ShopPage() {
     updateSearchParams(currentCategorySlug, currentSortOrder, '', '');
   };
 
-  const handleLogin = async () => {
-    const supabase = createClient();
-    const currentPath = window.location.pathname + (window.location.search || ''); // Fixed to dynamic path
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `http://localhost:3000${currentPath}`,
-      },
-    });
-    if (error) {
-      console.error('Login error:', error.message);
-    } else if (data.url) {
-      window.location.href = data.url; // Redirect to OAuth URL
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -166,18 +126,6 @@ export default function ShopPage() {
     <div className="container mx-auto p-4 md:p-8 mt-12">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold text-gray-900 text-center">{getPageTitle()}</h1>
-        <div>
-          {isUserLoading ? (
-            <span className="text-gray-500">Checking login...</span>
-          ) : user ? (
-            <div className="flex items-center gap-4">
-              <span className="text-lg text-gray-700">Welcome, {user.user_metadata?.name || user.email || 'User'}!</span>
-              <Link href="/api/auth/logout" className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition-colors">Logout</Link>
-            </div>
-          ) : (
-            <button onClick={handleLogin} className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors">Login</button>
-          )}
-        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">

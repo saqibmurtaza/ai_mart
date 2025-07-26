@@ -239,3 +239,37 @@ async def fetch_static_promos():
         print(f"Error fetching promos: {e}")
         return None
 
+async def fetch_product_by_id(product_id: str):
+    """
+    Fetches a single product by its ID.
+    """
+    query = textwrap.dedent(f"""
+    *[_type == "product" && _id == "{product_id}"][0]{{
+        _id,
+        name,
+        "slug": slug.current,
+        price,
+        description,
+        category->{{_id, title, "slug": slug.current}},
+        "imageUrl": mainImage.asset->url,
+        "alt": mainImage.alt,
+        stock,
+        isFeatured,
+        sku
+    }}
+    """)
+    url_params = {"query": query}
+    try:
+        print(f"DEBUG (sanity_service.py): fetch_product_by_id called for ID: '{product_id}'")
+        print(f"DEBUG (sanity_service.py): GROQ query: {query}")
+        response = await sanity_client.get("/", params=url_params)
+        print(f"DEBUG (sanity_service.py): Sanity API Response Status (single product): {response.status_code}")
+        print(f"DEBUG (sanity_service.py): Sanity API Response Body (single product): {response.text}")
+        if response.status_code == 200:
+            return response.json().get("result", None)
+        else:
+            print(f"ERROR: Sanity API request failed (single product by ID): {response.text}")
+            return None
+    except Exception as e:
+        print(f"Error fetching product by ID: {e}")
+        return None

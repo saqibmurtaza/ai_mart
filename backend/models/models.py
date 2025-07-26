@@ -1,6 +1,6 @@
 from sqlmodel import Field, SQLModel
 from datetime import date, datetime, timezone
-from typing import Optional, Any
+from typing import Optional, Any, List
 from generate_id import generate_base64_uuid
 from pydantic import BaseModel
 
@@ -74,10 +74,11 @@ class OrderItem(SQLModel, table=True):
     quantity: int
     price: float
 
-from pydantic import BaseModel
 class CheckoutPayload(BaseModel):
-    user_id: str
+    user_id: Optional[str] = None
+    email: Optional[str] = None
     shipping_address: str
+    cart_items: Optional[List[CartItem]] = None
 
 # Model for content blocks (similar to HomepageSection but without slug/id requirements)
 # Homepage specific section (like the benefits section)
