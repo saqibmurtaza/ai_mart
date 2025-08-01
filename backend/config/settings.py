@@ -5,9 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings(BaseSettings):
-    # This tells Pydantic to look for environment variables.
-    # It also allows for .env file loading implicitly if not already done.
-    # However, explicitly calling load_dotenv() as above is good practice.
     model_config = SettingsConfigDict(env_file='.env', extra='ignore') # Ensure it looks for .env
 
     # Supabase Credentials

@@ -17,7 +17,6 @@ ai_mart/
 │   ├── pyproject.toml
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── sanity_client.py
 │   │   ├── sanity_service.py
 │   ├── uv.lock
 ├── chatbot/
@@ -41,36 +40,6 @@ ai_mart/
 │   │   │   ├── index.ts
 │   │   ├── static/
 │   │   ├── tsconfig.json
-│   ├── dist/
-│   │   ├── favicon.ico
-│   │   ├── index.html
-│   │   ├── static/
-│   │   │   ├── apple-touch-icon.png
-│   │   │   ├── favicon-192.png
-│   │   │   ├── favicon-512.png
-│   │   │   ├── favicon-96.png
-│   │   │   ├── favicon.ico
-│   │   │   ├── favicon.svg
-│   │   │   ├── manifest.webmanifest
-│   │   │   ├── sanity-CLo3gnnx.js
-│   │   ├── vendor/
-│   │   │   ├── react/
-│   │   │   │   ├── compiler-runtime-CLwTdp69.mjs
-│   │   │   │   ├── index-CGefqM5J.mjs
-│   │   │   │   ├── jsx-dev-runtime-CFcxexBp.mjs
-│   │   │   │   ├── jsx-runtime-BUu44C77.mjs
-│   │   │   │   ├── package.json-BcMtcytY.mjs
-│   │   │   ├── react-dom/
-│   │   │   │   ├── client-DP8_kyeM.mjs
-│   │   │   │   ├── index-XrltE2Pv.mjs
-│   │   │   │   ├── package.json-CRgFsXVE.mjs
-│   │   │   │   ├── server-BQJN0C5i.mjs
-│   │   │   │   ├── server.browser-BPxBTi7l.mjs
-│   │   │   │   ├── static-CZYZiTat.mjs
-│   │   │   │   ├── static.browser-BZ_MALGo.mjs
-│   │   │   ├── styled-components/
-│   │   │   │   ├── index-CP8zrEyF.mjs
-│   │   │   │   ├── package.json-Djg-ccVm.mjs
 │   ├── ecommerce_backup.tar.gz
 │   ├── eslint.config.mjs
 │   ├── package-lock.json
@@ -87,7 +56,6 @@ ai_mart/
 │   │   ├── user.ts
 │   ├── static/
 │   ├── tsconfig.json
-├── structure.t
 ├── tree.py
 ├── web-frontend/
 │   ├── README.md
@@ -149,7 +117,6 @@ ai_mart/
 │   │   │   │   ├── [[...tool]]/
 │   │   │   │   │   ├── page.tsx
 │   │   ├── components/
-│   │   │   ├── CartDrawer.tsx
 │   │   │   ├── CategoryCard.tsx
 │   │   │   ├── ContentBlock.tsx
 │   │   │   ├── DOMCleanup.tsx

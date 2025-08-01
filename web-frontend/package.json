@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.27.1",
     "@portabletext/react": "^3.2.1",
     "@sanity/client": "^7.8.1",
     "@sanity/image-url": "^1.1.0",
@@ -24,6 +25,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.5.2",
+    "sonner": "^2.0.6",
     "styled-components": "^6.1.18",
     "swr": "^2.3.4",
     "tailwind-merge": "^3.3.0",
@@ -32,7 +34,6 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/aspect-ratio": "^0.4.2",
-    "@tailwindcss/postcss": "^4",
     "@tailwindcss/typography": "^0.5.16",
     "@types/node": "^20",
     "@types/react": "^19",

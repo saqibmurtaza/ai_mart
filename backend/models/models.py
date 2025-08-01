@@ -3,6 +3,20 @@ from datetime import date, datetime, timezone
 from typing import Optional, Any, List
 from generate_id import generate_base64_uuid
 from pydantic import BaseModel
+from typing import Dict
+
+# Product Class for Supabase
+class Product(SQLModel, table=True):
+    id: Optional[str] = Field(default_factory=generate_base64_uuid, primary_key=True)
+    name: str
+    description: Optional[str] = None
+    price: float
+    stock: int
+    category: Optional[str] = None
+    imageUrl: Optional[str] = None
+    alt: Optional[str] = None                  # corresponds to alt character varying NULL
+    isFeatured: Optional[bool] = None          # corresponds to isFeatured boolean NULL
+    sku: Optional[str] = None                   # corresponds to sku character varying NULL
 
 class ProductDisplayAPIModel(BaseModel):
     id: str # Use 'id' for the primary identifier (can be Supabase ID or Sanity _id)
@@ -16,15 +30,7 @@ class ProductDisplayAPIModel(BaseModel):
     stock: Optional[int] = None
     isFeatured: Optional[bool] = False # Only for Sanity-sourced featured products
     sku: Optional[str] = None
-# Product Class for Supabase
-class Product(SQLModel, table=True): # use default factory (a callable without parentheses) for generating ids
-    id: Optional[str] = Field(default_factory=generate_base64_uuid, primary_key=True)
-    name: str
-    description: Optional[str] = None
-    price: float
-    stock: int
-    category: Optional[str] = None
-    image_url: Optional[str] = None
+
 
 class SanityProductAPIModel(BaseModel):
     _id: str # Sanity document ID
@@ -47,7 +53,7 @@ class DynamicPromo(SQLModel, table=True):
     description: Optional[str] = None
     discount: Optional[str] = None       
     valid_until: Optional[date] = None
-    image_url: Optional[str] = None
+    imageUrl: Optional[str] = None
     is_active: Optional[bool] = True
 
 
@@ -57,7 +63,11 @@ class CartItem(SQLModel, table=True):
     name: str
     price: float
     quantity: int
-
+    imageUrl: Optional[str] = Field(default=None, alias="imageUrl")
+    slug: Optional[str] = Field(default=None, alias="slug")
+    sku: Optional[str] = Field(default=None, alias="sku")
+    class Config:
+        populate_by_name = True  # allows accepting both camelCase and snake_case
 
 class Order(SQLModel, table=True):
     id: Optional[str] = Field(default_factory=generate_base64_uuid, primary_key=True)
@@ -111,6 +121,25 @@ class Category(BaseModel): # <<<<< MODIFIED: Added _id
     alt: Optional[str] = None
     order: int
 
+# --- New Model for Sanity Webhook Payload ---
+class SanityProductData(BaseModel):
+    _id: str
+    _type: str
+    name: str
+    slug: Dict[str, str]  # Sanity slugs are objects {current: 'slug-value'}
+    description: Optional[str] = None
+    price: float
+    category: Optional[Dict[str, Any]] = None # Sanity category can be a reference or object
+    imageUrl: Optional[str] = None
+    alt: Optional[str] = None
+    stock: Optional[int] = 0
+    isFeatured: Optional[bool] = False
+    sku: Optional[str] = None
 
-
+class SanityWebhookPayload(BaseModel):
+    _id: str # Sanity document ID
+    _type: str
+    result: Optional[SanityProductData] = None # Product data after change
+    previous: Optional[SanityProductData] = None # Product data before change (for updates/deletes)
+    # Add other fields from Sanity webhook payload if needed, e.g., 'deleted', 'created', 'updated'
 
