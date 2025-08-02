@@ -1,45 +1,3 @@
-# import os
-# from supabase import Client, create_client
-# from config.settings import settings
-# from sqlmodel.ext.asyncio.session import AsyncSession
-# from sqlmodel import SQLModel # No need for create_engine here if only using async_engine
-# from sqlalchemy.ext.asyncio import create_async_engine
-# from sqlalchemy.orm import sessionmaker
-# from typing import AsyncGenerator
-
-# # Initialize Supabase clients
-# supabase_public: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-# supabase_admin: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.SUPABASE_SECRET_KEY)
-
-# # Use create_async_engine for asynchronous database operations
-# connection_string = str(settings.DATABASE_URL.replace('postgresql', 'postgresql+asyncpg'))
-
-# # IMPORTANT CHANGES HERE: Added pool_pre_ping and pool_recycle
-# async_engine = create_async_engine(
-#     connection_string,
-#     echo=True,
-#     future=True,
-#     connect_args={"statement_cache_size": 0}, # This disables statement caching for asyncpg
-#     pool_pre_ping=True, # Ensures connections in the pool are alive
-#     pool_recycle=3600 # Recycles connections after 1 hour to prevent stale connections (adjust as needed)
-# )
-
-# # Define an async sessionmaker
-# AsyncSessionLocal = sessionmaker(
-#     async_engine, class_=AsyncSession, expire_on_commit=False
-# )
-
-# # MODIFIED: create_db_tables now uses async_engine.begin() directly for DDL
-# async def create_db_tables():
-#     async with async_engine.begin() as conn: # Start an async connection
-#         await conn.run_sync(SQLModel.metadata.create_all) # Run synchronous metadata creation in async context
-#     # print("DEBUG: SQLModel.metadata.create_all completed.")
-
-# # get_session must provide an AsyncSession
-# async def get_session() -> AsyncGenerator[AsyncSession, None]:
-#     async with AsyncSessionLocal() as session:
-#         yield session
-
 import os
 from supabase import Client, create_client
 from config.settings import settings
@@ -85,3 +43,4 @@ async def create_db_tables():
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         yield session
+

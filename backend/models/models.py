@@ -16,7 +16,8 @@ class Product(SQLModel, table=True):
     imageUrl: Optional[str] = None
     alt: Optional[str] = None                  # corresponds to alt character varying NULL
     isFeatured: Optional[bool] = None          # corresponds to isFeatured boolean NULL
-    sku: Optional[str] = None                   # corresponds to sku character varying NULL
+    sku: Optional[str] = None
+    slug: Optional[str] = None                 # corresponds to sku character varying NULL
 
 class ProductDisplayAPIModel(BaseModel):
     id: str # Use 'id' for the primary identifier (can be Supabase ID or Sanity _id)

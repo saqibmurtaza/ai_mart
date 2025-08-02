@@ -2,7 +2,7 @@
 from fastapi import FastAPI, Depends, HTTPException, Query, Request, Header # Added Request, Header
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
-from database.db import create_db_tables, get_session, supabase_admin, supabase_public
+from database.db import create_db_tables, supabase_admin, supabase_public
 from services.sanity_service import (
     fetch_static_promos,
     fetch_homepage_section,
@@ -23,10 +23,10 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from postgrest.exceptions import APIError
 from dotenv import load_dotenv
-import hmac # New Import
+import hmac, time, base64 # New Import
 import hashlib # New Import
 import os # New Import
-from utils import SignatureValidationError, verify_sanity_webhook_signature
+from utils import SignatureValidationError, verify_sanity_webhook_signature, normalize_product_id
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -51,12 +51,16 @@ async def fetch_product_by_supabase_id(product_id: str):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.info("CREATING DATABASE TABLES...")
-    await create_db_tables()
-    logging.info("Database tables created successfully.")
+    # Startup tasks
+    logger.info("Starting up application.")
 
+    logger.info("CREATING DATABASE TABLES...")
+    await create_db_tables()
+    logger.info("Database tables created successfully.")
     yield
-    logging.info("Shutting down the application...")
+    # Shutdown tasks
+    logger.info("Shutting down the application...")
+
 
 app = FastAPI(
     lifespan=lifespan,
@@ -267,57 +271,68 @@ async def add_to_cart(payload: CartItem):
     logger.info(f"[ADD TO CART] User: {payload.user_id}, Product: {payload.product_id}")
 
     try:
-        # Changed to use product_id (Supabase ID) for fetching from Supabase product table
-        product = await fetch_product_by_supabase_id(payload.product_id)
-        if not product:
-            logger.error(f"Product not found in Supabase for id: {payload.product_id}")
-            raise HTTPException(status_code=404, detail=f"Product with ID {payload.product_id} not found in Supabase")
+        # Normalize and get product_id string
+        product_id = normalize_product_id(payload.product_id)
+        product = await fetch_product_by_supabase_id(product_id)  # Await your async fetch
 
+        if not product:
+            logger.error(f"Product not found in Supabase for id: {product_id}")
+            raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found in Supabase")
+
+        # Use product_id string to query cart items, not full product dict
         existing_item_resp = supabase_public.table("cartitem")\
             .select("quantity")\
             .eq("user_id", payload.user_id)\
-            .eq("product_id", payload.product_id)\
+            .eq("product_id", product_id)\
             .execute()
+
         logger.info(f"Existing cartitem query result: {existing_item_resp}")
 
-        existing_item_data = existing_item_resp.data
+        existing_item_data = existing_item_resp.data or []
+
 
         if existing_item_data:
             current_quantity = existing_item_data[0]["quantity"]
             new_quantity = current_quantity + payload.quantity
 
-            result = supabase_public.table("cartitem").update({"quantity": new_quantity})\
+            result = supabase_admin.table("cartitem").update({"quantity": new_quantity})\
                 .eq("user_id", payload.user_id)\
-                .eq("product_id", payload.product_id)\
+                .eq("product_id", product_id)\
                 .execute()
             logger.info(f"Supabase update result: {result}")
         else:
-            result = supabase_public.table("cartitem")\
-                .upsert(payload.model_dump(by_alias=True))\
+            # Upsert: make sure product_id is normalized in payload before sending to Supabase
+            payload_dict = payload.model_dump(by_alias=True)
+            payload_dict["product_id"] = product_id  # Override with normalized ID
+
+            result = supabase_admin.table("cartitem")\
+                .upsert(payload_dict)\
                 .execute()
             logger.info(f"Supabase upsert result: {result}")
 
+        # Check result success
         if result.data:
             logger.info(f"CartItem upserted/updated successfully: {result.data[0]}")
             return CartItem.model_validate(result.data[0], from_attributes=True)
 
-        logger.error(f"Failed to upsert cart item for user_id={payload.user_id}, product_id={payload.product_id}. Supabase response: {result}")
+        logger.error(f"Failed to upsert cart item for user_id={payload.user_id}, product_id={product_id}. Supabase response: {result}")
         raise HTTPException(status_code=500, detail="Cart update failed.")
+
     except Exception as e:
         logger.exception(f"Exception in add_to_cart: {e}")
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
+
 @app.get("/cart/{user_id}", response_model=Dict[str, Any])
 async def get_cart(user_id: str):
-    logger.info(f"Fetching cart for user_id={user_id}")
+    logger.info(f"[TRACE] Received GET /cart/{user_id} request")
 
     result = supabase_public.table("cartitem").select("*").eq("user_id", user_id).execute()
     cart_items_data = result.data or []
 
     enriched_cart_items = []
     for item in cart_items_data:
-        # Changed to use Supabase product table for enrichment, not Sanity
         product = await fetch_product_by_supabase_id(item["product_id"])
         enriched_cart_items.append({
             "user_id": item["user_id"],
@@ -326,10 +341,11 @@ async def get_cart(user_id: str):
             "name": product.get("name") if product else item.get("name", "Unknown Product"),
             "price": product.get("price") if product else item.get("price", 0.0),
             "imageUrl": product.get("imageUrl") if product else None,
-            "slug": product.get("slug") if product else None, # Assuming slug is string in Supabase
+            "slug": product.get("slug") if product else None,
             "alt": product.get("alt") if product else None,
             "sku": product.get("sku") if product else item.get("sku")
         })
+        print(f"[TRACE] Enriched cart item: {enriched_cart_items}")
 
     return {"message": "Cart retrieved", "cart": enriched_cart_items}
 
@@ -429,10 +445,10 @@ async def checkout(payload: CheckoutPayload):
             for item in processed_cart_items
         ]
 
-        await supabase_public.table("orderitem").insert(final_order_items_for_insert).execute()
+        supabase_public.table("orderitem").insert(final_order_items_for_insert).execute()
 
         if payload.user_id:
-            await supabase_public.table("cartitem").delete().eq("user_id", payload.user_id).execute()
+            supabase_public.table("cartitem").delete().eq("user_id", payload.user_id).execute()
 
         return {"message": "Order placed successfully", "order_id": order_id}
 
@@ -495,9 +511,19 @@ async def sanity_webhook_debug(request: Request):
         "message": "Logged headers and body for debug"
     }
 
-import time
-# Allowed timestamp tolerance in seconds to prevent replay attacks (e.g., 5 minutes)
-TIMESTAMP_TOLERANCE = 300
+# --- SANITY WEBHOOK ENDPOINT ---
+
+
+logger = logging.getLogger("main")
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+
+# Your webhook secret - load securely in production
+SANITY_WEBHOOK_SECRET = "I_am_Saqib"  # Replace with your actual secret securely
+
+if not SANITY_WEBHOOK_SECRET:
+    raise RuntimeError("SANITY_WEBHOOK_SECRET must be set for webhook verification.")
+
+
 
 @app.post("/webhook/sanity")
 async def sanity_webhook(
@@ -507,82 +533,90 @@ async def sanity_webhook(
     logger.info("Received webhook request.")
 
     body = await request.body()
+    logger.info(f"Raw request body length: {len(body)} bytes")
 
-        # --- ADD THESE DEBUG LOGS HERE ---
-    logger.info(f"SANITY_WEBHOOK_SECRET being used (first 5 chars): {SANITY_WEBHOOK_SECRET[:5]}...")
-    logger.info(f"Received signature header: {sanity_webhook_signature}")
-    logger.info(f"Raw request body (decoded): {body.decode('utf-8')}") # Log the decoded body for inspection
-    logger.info(f"Raw request body length (bytes): {len(body)}")
-    
-
+    # Verify webhook signature
     try:
         verify_sanity_webhook_signature(SANITY_WEBHOOK_SECRET, body, sanity_webhook_signature)
         logger.info("Webhook signature successfully verified.")
-    except SignatureValidationError as sve:
-        logger.warning(f"Signature validation error: {sve}")
-        raise HTTPException(status_code=403, detail=str(sve))
+    except SignatureValidationError as e:
+        logger.warning(f"Signature validation error: {e}")
+        raise HTTPException(status_code=403, detail="Invalid webhook signature")
 
+    # Parse JSON payload
     try:
-        headers = dict(request.headers)
-        logger.info(f"Received headers: {headers}")
-        logger.info(f"Raw request body length: {len(body)} bytes")
-
         payload_json = json.loads(body)
         logger.info(f"Verified webhook payload: {json.dumps(payload_json, indent=2)}")
+    except json.JSONDecodeError:
+        logger.error("Invalid JSON payload")
+        raise HTTPException(status_code=400, detail="Invalid JSON payload")
 
-        # Handle deleted event - delete products from Supabase
+    try:
+        # --- Handle deleted products ---
         if payload_json.get("deleted"):
-            for deleted_id in payload_json["deleted"]:
-                logger.info(f"Deleting product with _id: {deleted_id}")
-                # Make sure to await the result and handle exceptions in production
-                await supabase_public.table("product").delete().eq("id", deleted_id).execute()
-                logger.info(f"Product {deleted_id} deleted from Supabase.")
+            deleted_ids = payload_json["deleted"]
+            logger.info(f"Deleting products with IDs: {deleted_ids}")
+
+            for deleted_id in deleted_ids:
+                logger.info(f"Deleting product with ID: {deleted_id}")
+
+                result = supabase_admin.table("product").delete().eq("id", deleted_id).execute()
+                if result.error:
+                    logger.error(f"Failed to delete product {deleted_id}: {result.error}")
+                else:
+                    logger.info(f"Deleted product {deleted_id} from Supabase successfully.")
+
             return {"message": "Products deleted from Supabase successfully"}
 
-        # Handle created or updated 'product' documents
-        elif payload_json.get("result") and payload_json["result"].get("_type") == "product":
-            sanity_product_data = SanityProductData(**payload_json["result"])
+        # --- Handle product creation or update ---
+        product_data = None
+        if payload_json.get("result") and payload_json["result"].get("_type") == "product":
+            product_data = payload_json["result"]
+        elif payload_json.get("_type") == "product":
+            product_data = payload_json
+
+        if product_data:
+            # Handle category field safely (string or dict)
+            category_value = product_data.get("category")
+            if isinstance(category_value, dict):
+                category = category_value.get("title")
+            elif isinstance(category_value, str):
+                category = category_value
+            else:
+                category = None
+            
+            incoming_id = product_data.get("_id")
+            incoming_id = product_data.get("_id")
+            if incoming_id and incoming_id.startswith("drafts."):
+                normalized_id = incoming_id[len("drafts."):]
+            else:
+                normalized_id = incoming_id
 
             product_to_upsert = {
-                "id": sanity_product_data._id,
-                "name": sanity_product_data.name,
-                "slug": sanity_product_data.slug.get("current") if sanity_product_data.slug else None,
-                "description": sanity_product_data.description,
-                "price": sanity_product_data.price,
-                "category": sanity_product_data.category.get("title") if sanity_product_data.category else None,
-                "imageUrl": sanity_product_data.imageUrl,
-                "alt": sanity_product_data.alt,
-                "stock": sanity_product_data.stock,
-                "isFeatured": sanity_product_data.isFeatured,
-                "sku": sanity_product_data.sku,
+                "id": normalized_id,
+                "name": product_data.get("name"),
+                "slug": product_data.get("slug", {}).get("current") if product_data.get("slug") else None,
+                "description": product_data.get("description"),
+                "price": product_data.get("price"),
+                "category": category,
+                "imageUrl": product_data.get("imageUrl"),
+                "alt": product_data.get("alt"),
+                "stock": product_data.get("stock"),
+                "isFeatured": product_data.get("isFeatured"),
+                "sku": product_data.get("sku"),
             }
 
             logger.info(f"Upserting product to Supabase: {product_to_upsert}")
-            result = await supabase_public.table("product").upsert(product_to_upsert, on_conflict="id").execute()
-            logger.info(f"Supabase upsert result data: {result.data}")
-            logger.info(f"Supabase upsert result error: {result.error}")
+            result = supabase_admin.table("product").upsert(product_to_upsert, on_conflict="id").execute()
+            
 
-            if result.error:
-                logger.error(f"Supabase error occurred: {result.error}")
-                raise HTTPException(status_code=500, detail=f"Failed to sync product to Supabase: {result.error}")
-
-            if not result.data:
-                logger.error("Supabase upsert returned no data and no error.")
-                raise HTTPException(status_code=500, detail="Failed to sync product to Supabase with unknown error")
-
-            logger.info(f"Product {sanity_product_data._id} synced to Supabase successfully.")
-            return {"message": "Product synced to Supabase successfully", "product_id": sanity_product_data._id}
+            logger.info(f"Product {product_to_upsert['id']} synced to Supabase successfully.")
+            return {"message": "Product synced to Supabase successfully", "product_id": product_to_upsert['id']}
 
         else:
             logger.info("No product-related action taken on webhook payload.")
             return {"message": "Webhook received, but no product sync action taken."}
 
-    except json.JSONDecodeError:
-        logger.error("Invalid JSON payload received.")
-        raise HTTPException(status_code=400, detail="Invalid JSON payload")
-    except Exception as e:
-        logger.error(f"Error processing webhook: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
-
-
-
+    except Exception as exc:
+        logger.error(f"Error processing webhook: {exc}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error.")
