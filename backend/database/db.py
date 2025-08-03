@@ -7,9 +7,13 @@ from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.orm import sessionmaker
 from typing import AsyncGenerator
 
+supabase_url = settings.NEXT_PUBLIC_SUPABASE_URL
+supabase_key = settings.NEXT_PUBLIC_SUPABASE_ANON_KEY
+supabase_secret_key = settings.SUPABASE_SECRET_KEY
+
 # Initialize Supabase clients
-supabase_public: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.NEXT_PUBLIC_SUPABASE_ANON_KEY)
-supabase_admin: Client = create_client(settings.NEXT_PUBLIC_SUPABASE_URL, settings.SUPABASE_SECRET_KEY)
+supabase_public: Client = create_client(supabase_url, supabase_key)
+supabase_admin: Client = create_client(supabase_url, supabase_secret_key)
 
 # Use create_async_engine for asynchronous database operations
 # Replace 'postgresql' with 'postgresql+asyncpg' to use asyncpg driver

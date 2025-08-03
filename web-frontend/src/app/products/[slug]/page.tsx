@@ -1,141 +1,97 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { getProductBySlug, Product } from '@/lib/api';
-import { useParams } from 'next/navigation';
-import Image from 'next/image';
-import { PortableText } from '@portabletext/react';
-import { toast } from 'react-hot-toast';
+import { useEffect, useState } from 'react';
 import { useCart } from '@/context/CartContext';
+import { getProductBySlug, Product } from '@/lib/api';
+import { toast } from 'react-hot-toast';
 
-export default function ProductDetailPage() {
-  const { slug } = useParams();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const { addItemToCart } = useCart();
+export default function ProductPage({ params }: { params: { slug: string } }) {
+  const [product, setProduct] = useState<Product | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchProductData() {
-      if (!slug) {
-        setError('Product not found.');
-        setLoading(false);
-        return;
-      }
-      setLoading(true);
-      setError(null);
-      try {
-        const productData = await getProductBySlug(Array.isArray(slug) ? slug[0] : slug);
-        if (productData) {
-          setProduct(productData);
-        } else {
-          setError('Product not found.');
-        }
-      } catch (err: any) {
-        console.error('Failed to fetch product:', err);
-        setError(err.message || 'Failed to load product details.');
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchProductData();
-  }, [slug]);
+  const { addItemToCart } = useCart();
 
-  const handleAddToCart = () => {
-    if (!product) {
-      toast.error('Cannot add an unknown product to cart.');
-      return;
-    }
-    try {
-      addItemToCart(product);
-      toast.success(`${product.name} added to cart!`);
-    } catch (error: any) {
-      console.error('Error adding to cart:', error);
-      toast.error(`Failed to add ${product.name} to cart: ${error.message}`);
-    }
-  };
+  // Fetch product by slug
+  useEffect(() => {
+    async function fetchProduct() {
+      try {
+        setIsLoading(true);
+        setLoadError(null);
+        if (params.slug) {
+          const prod = await getProductBySlug(params.slug);
+          setProduct(prod); // can be null if not found
+        } else {
+          setLoadError('No product slug in URL.');
+        }
+      } catch (err) {
+        console.error('Fetch product error:', err);
+        setLoadError('Could not load product data.');
+        setProduct(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchProduct();
+  }, [params.slug]);
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-xl text-gray-600">Loading product details...</p>
-      </div>
-    );
-  }
+  // Add to Cart Handler -- for both guests and signed-in users
+  const handleAddToCart = async () => {
+    if (!product?.id) {
+      toast.error('Product not loaded yet. Please wait.');
+      return;
+    }
+    await addItemToCart(product);
+    // CartContext will toast "added" or show guest error if needed
+  };
 
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-xl text-red-600">Error: {error}</p>
-      </div>
-    );
-  }
+  // ---- UI Rendering ----
+  if (isLoading) {
+    return <div className="py-10 text-center">Loading product details...</div>;
+  }
 
-  if (!product) {
-    return (
-      <div className="flex justify-center">
-        <p className="text-xl text-gray-600">Product details not available.</p>
-      </div>
-    );
-  }
+  if (loadError) {
+    return <div className="py-10 text-center text-red-600">{loadError}</div>;
+  }
 
-  return (
-    <div className="container mx-auto p-4 md:p-8 mt-12">
-      <div className="flex flex-col lg:flex-row gap-12 bg-white rounded-lg shadow-lg p-8">
-        <div className="w-full lg:w-1/2 flex justify-center items-center">
-          {product.imageUrl ? (
-            <Image
-              src={product.imageUrl}
-              alt={product.alt || `${product.name} product image`}
-              width={600}
-              height={600}
-              className="rounded-lg shadow-md object-contain max-h-[600px] w-auto"
-              priority
-            />
-          ) : (
-            <div className="flex items-center justify-center w-full h-96 bg-gray-100 text-gray-400 text-xl rounded-lg">
-              No Image Available
-            </div>
-          )}
-        </div>
-        <div className="w-full lg:w-1/2 flex flex-col justify-center text-center lg:text-left">
-          <h1 className="text-5xl font-extrabold text-gray-900 mb-4 leading-tight">
-            {product.name}
-          </h1>
-          <p className="text-3xl font-bold text-blue-600 mb-6">
-            ${product.price.toFixed(2)}
-          </p>
-          <div className="text-gray-700 text-lg leading-relaxed mb-8 prose">
-            {product.description ? (
-              typeof product.description === 'string' ? (
-                <p>{product.description}</p>
-              ) : (
-                <PortableText value={product.description} />
-              )
-            ) : (
-              <p>No description available for this product.</p>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-4">
-            <button
-              onClick={handleAddToCart}
-              className="flex-1 bg-blue-600 text-white py-3 px-6 rounded-md text-xl font-semibold hover:bg-blue-700 transition-colors duration-200 shadow-lg"
-              disabled={(product.stock ?? 0) <= 0}
-            >
-              {(product.stock ?? 0) > 0 ? 'Add to Cart' : 'Out of Stock'}
-            </button>
-          </div>
-          <p className="text-sm text-gray-500 mt-4">
-            In Stock: {product.stock ?? 0} units
-          </p>
-          {product.sku && (
-            <p className="text-sm text-gray-500 mt-2">SKU: {product.sku}</p>
-          )}
-          {product.category && (
-            <p className="text-sm text-gray-500 mt-2">Category: {product.category}</p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  if (!product) {
+    return <div className="py-10 text-center text-gray-600">Product not found.</div>;
+  }
+
+  return (
+    <div className="container mx-auto p-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Product Image */}
+        <div>
+          <div className="bg-gray-200 w-full h-96 flex items-center justify-center text-xl text-gray-700">
+            Image of {product.name}
+          </div>
+        </div>
+        {/* Product Details */}
+        <div>
+          <h1 className="text-4xl font-bold mb-4">{product.name}</h1>
+          <p className="text-2xl text-green-700 mb-4">${product.price.toFixed(2)}</p>
+          <div className="mb-6">
+            {product.description
+              ? <div>{product.description}</div>
+              : <div className="text-gray-500">No description available.</div>
+            }
+          </div>
+          <div className="text-sm text-gray-500 mb-6">
+            In Stock: {product.stock ?? 0} units
+            {product.sku && <span> &nbsp;| SKU: {product.sku}</span>}
+            {product.category && <span>&nbsp;| Category: {product.category}</span>}
+          </div>
+          {/* --- FINAL, UNIVERSAL BUTTON --- */}
+          <button
+            className="w-full bg-blue-600 text-white py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400"
+            onClick={handleAddToCart}
+            disabled={isLoading || !product.id}
+          >
+            Add to Cart
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 }

@@ -4,6 +4,9 @@ import time
 import base64
 import logging
 from typing import Optional
+from fastapi import Request, HTTPException
+from supabase import create_client, Client
+from database.db import supabase_url, supabase_key, supabase_public
 
 logger = logging.getLogger("main")
 
@@ -70,3 +73,31 @@ def normalize_product_id(product_id: str) -> str:
     if product_id.startswith("drafts."):
         return product_id[len("drafts."):]
     return product_id
+
+
+# Function to get Supabase client with JWT from request
+
+def get_supabase_client(request: Request) -> Client:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        print("DEBUG: No or invalid Authorization header")
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    jwt = auth_header.split(" ")[1]
+    print(f"DEBUG: Extracted JWT: {jwt[:10]}...")  # Don't log full token
+    return create_client(supabase_url, supabase_key, headers={"Authorization": f"Bearer {jwt}"})
+
+
+# Function to fetch product by ID from Supabase
+
+async def fetch_product_by_supabase_id(product_id: str, supabase_client=None):
+    """Fetch a product from Supabase by its ID, using the right client."""
+    client = supabase_client or supabase_public
+
+    # If your .execute() method is awaitable, use await; else leave as sync.
+    # Example for async-supabase client:
+    result = await client.table("product").select("*").eq("id", product_id).execute()
+    # If your client is not awaitable, just: result = client.table(...).execute()
+
+    if result.data and len(result.data) > 0:
+        return result.data[0]
+    return None

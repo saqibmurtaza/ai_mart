@@ -1,6 +1,8 @@
+// src/lib/api.tsx
+
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
 
-// --- GENERAL & HOMEPAGE TYPES AND FUNCTIONS ---
+// -------- GENERAL & HOMEPAGE TYPES AND FUNCTIONS --------
 
 export interface Category {
   _id: string;
@@ -53,7 +55,7 @@ export async function getHomepageSection(slug: string): Promise<HomepageSection>
   return res.json();
 }
 
-// --- PRODUCT TYPES AND FUNCTIONS ---
+// -------- PRODUCT TYPES AND FUNCTIONS --------
 
 export interface ProductImage {
   url: string;
@@ -93,7 +95,7 @@ export async function getFeaturedProducts(): Promise<Product[]> {
   return res.json();
 }
 
-// --- CART TYPES AND FUNCTIONS ---
+// -------- CART TYPES AND FUNCTIONS --------
 
 export interface CartItem {
   user_id: string;
@@ -104,6 +106,7 @@ export interface CartItem {
   imageUrl?: string;
   slug?: string;
   sku?: string;
+  alt?: string;
 }
 
 export interface Cart {
@@ -120,6 +123,7 @@ export interface AddToCartPayload {
   imageUrl?: string;
   slug?: string;
   sku?: string;
+  alt?: string;
 }
 
 export async function getCart(userId: string): Promise<Cart> {
@@ -139,11 +143,13 @@ export async function getCart(userId: string): Promise<Cart> {
   }
 }
 
-export async function addToCart(payload: AddToCartPayload): Promise<CartItem> {
+export async function addToCart(payload: AddToCartPayload, token?: string): Promise<CartItem> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${FASTAPI_URL}/cart`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -159,10 +165,13 @@ export async function addToCart(payload: AddToCartPayload): Promise<CartItem> {
   }
 }
 
-export async function removeFromCart(userId: string, productId: string): Promise<any> {
+export async function removeFromCart(userId: string, productId: string, token?: string): Promise<any> {
   try {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${FASTAPI_URL}/cart/${userId}/${productId}`, {
       method: 'DELETE',
+      headers,
     });
 
     if (!res.ok) {
@@ -177,11 +186,18 @@ export async function removeFromCart(userId: string, productId: string): Promise
   }
 }
 
-export async function updateCartItemQuantity(userId: string, productId: string, quantity: number): Promise<any> {
+export async function updateCartItemQuantity(
+  userId: string,
+  productId: string,
+  quantity: number,
+  token?: string
+): Promise<any> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${FASTAPI_URL}/cart/${userId}/${productId}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ quantity }),
     });
 
@@ -197,7 +213,7 @@ export async function updateCartItemQuantity(userId: string, productId: string, 
   }
 }
 
-// --- CHECKOUT AND ORDER FUNCTIONS ---
+// -------- CHECKOUT AND ORDER FUNCTIONS --------
 
 export interface CheckoutPayload {
   user_id?: string | null;
@@ -223,11 +239,13 @@ export interface Order {
   items: CartItem[];
 }
 
-export async function checkout(payload: CheckoutPayload): Promise<{ order_id: string }> {
+export async function checkout(payload: CheckoutPayload, token?: string): Promise<{ order_id: string }> {
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${FASTAPI_URL}/checkout`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(payload),
     });
 
@@ -243,9 +261,11 @@ export async function checkout(payload: CheckoutPayload): Promise<{ order_id: st
   }
 }
 
-export async function getOrders(userId: string): Promise<Order[]> {
+export async function getOrders(userId: string, token?: string): Promise<Order[]> {
   try {
-    const res = await fetch(`${FASTAPI_URL}/orders/${userId}`);
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FASTAPI_URL}/orders/${userId}`, { headers });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: 'Failed to fetch orders' }));
       throw new Error(errData.detail || `HTTP error: ${res.status}`);
@@ -259,21 +279,14 @@ export async function getOrders(userId: string): Promise<Order[]> {
   }
 }
 
-export interface CartItem {
-  user_id: string;
-  product_id: string;
-  quantity: number;
-  name: string;
-  price: number;
-  imageUrl?: string;
-  slug?: string;
-  alt?: string;
-  sku?: string;
-}
+// -------- FINAL FIX: fetchCartItems --------
+export async function fetchCartItems(userId: string, token?: string): Promise<CartItem[]> {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
-export async function fetchCartItems(userId: string): Promise<CartItem[]> {
-  const res = await fetch(`http://localhost:8000/cart/${userId}`, {
+  const res = await fetch(`${FASTAPI_URL}/cart/${userId}`, {
     method: 'GET',
+    headers,
   });
 
   if (!res.ok) {

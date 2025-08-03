@@ -1,19 +1,18 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
-import { addToCart, fetchCartItems /*, clearUserCartBackend */ } from '@/lib/api'; // import backend API helpers as needed
-import { CartItem, Product } from '@/lib/api';
+import { useUser, useAuth } from '@clerk/nextjs';
 import { toast } from 'react-hot-toast';
+import { CartItem, Product, fetchCartItems } from '@/lib/api';
 
 export interface CartContextType {
   cart: CartItem[];
-  cartItemCount: number;      // Total count of all items
-  cartTotal: number;          // Total cart price
+  cartItemCount: number;
+  cartTotal: number;
   addItemToCart: (product: Product & { quantity?: number }) => Promise<void>;
   removeItemFromCart: (productId: string) => Promise<void>;
   updateItemQuantity: (productId: string, quantity: number) => Promise<void>;
-  clearCart: () => Promise<void>;
+  clearCart: () => void;
   loadingCart: boolean;
   errorCart: string | null;
 }
@@ -22,119 +21,220 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useUser();
+  const { getToken } = useAuth();
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [loadingCart, setLoadingCart] = useState<boolean>(true);
+  const [loadingCart, setLoadingCart] = useState(true);
   const [errorCart, setErrorCart] = useState<string | null>(null);
 
+  // --- Step 1: On load/sign-in/sign-out, load correct cart (guest/server) ---
   useEffect(() => {
     const loadCart = async () => {
+      setLoadingCart(true);
+      setErrorCart(null);
+      if (!user || !getToken) {
+        // Guest: use localStorage, never call backend!
+        const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+        setCartItems(guestCart);
+        setLoadingCart(false);
+        return;
+      }
+      // Logged-in: backend cart
       try {
-        setLoadingCart(true);
-        if (user?.id) {
-          const items = await fetchCartItems(user.id);
-          setCartItems(items ?? []);
-        } else {
-          const storedCart = localStorage.getItem('guestCart');
-          if (storedCart) {
-            setCartItems(JSON.parse(storedCart));
-          } else {
-            setCartItems([]);
-          }
-        }
+        const token = await getToken({ template: 'supabase' });
+        const items = await fetchCartItems(user.id, token);
+        setCartItems(items ?? []);
       } catch (err) {
-        console.error('[CartContext] Failed to load cart:', err);
+        setCartItems([]); // fallback to empty, backend failed
         setErrorCart('Failed to load cart');
       } finally {
         setLoadingCart(false);
       }
     };
-
     loadCart();
-  }, [user?.id]);
+  }, [user, getToken]);
 
+  // --- Step 2: Guest-to-User cart merge on login ---
+  useEffect(() => {
+    if (!user || !getToken) return;
+    const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+    if (!guestCart.length) return;
+    const mergeGuestCart = async () => {
+      const token = await getToken({ template: 'supabase' });
+      for (const item of guestCart) {
+        try {
+          await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              user_id: user.id,
+              product_id: item.product_id,
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity,
+              imageUrl: item.imageUrl,
+              slug: item.slug,
+              sku: item.sku
+            })
+          });
+        } catch {
+          // Optionally toast or log
+        }
+      }
+      localStorage.removeItem('guestCart');
+      // Reload backend cart
+      try {
+        const items = await fetchCartItems(user.id, token);
+        setCartItems(items ?? []);
+      } catch {
+        setCartItems([]);
+      }
+    };
+    mergeGuestCart();
+    // eslint-disable-next-line
+  }, [user, getToken]);
+
+  // --- Add to Cart: guest uses local, user uses backend ---
   const addItemToCart = async (product: Product & { quantity?: number }) => {
     const quantity = product.quantity ?? 1;
-
-    if (!product.id) {
-      console.error('[CartContext] Product is missing `id` (Supabase ID):', product);
-      throw new Error('Product id (Supabase) is required but missing.');
+    if (!product || !product.id) {
+      toast.error('Cannot add item: Product info missing.');
+      return;
     }
-
-    const cartItem: CartItem = {
-      user_id: user?.id ?? 'guest',
-      product_id: product.id,
-      name: product.name,
-      price: product.price,
-      quantity,
-      imageUrl: product.imageUrl,
-      slug: product.slug,
-      sku: product.sku,
-    };
-
-    if (user?.id) {
-      try {
-        await addToCart(cartItem);
-        setCartItems((prevItems) => {
-          const existing = prevItems.find((item) => item.product_id === product.id);
-          if (existing) {
-            return prevItems.map((item) =>
-              item.product_id === product.id ? { ...item, quantity: item.quantity + quantity } : item
-            );
-          } else {
-            return [...prevItems, cartItem];
-          }
+    if (!user || !getToken) {
+      // Guest: localStorage cart
+      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+      const idx = guestCart.findIndex((item: CartItem) => item.product_id === product.id);
+      if (idx > -1) {
+        guestCart[idx].quantity += quantity;
+      } else {
+        guestCart.push({
+          user_id: null,
+          product_id: product.id,
+          name: product.name,
+          price: product.price,
+          quantity,
+          imageUrl: product.imageUrl,
+          slug: product.slug,
+          sku: product.sku
         });
-      } catch (error: any) {
-        console.error('[CartContext] Error adding to cart (logged in):', error);
-        toast.error('Failed to add item to cart: ' + (error instanceof Error ? error.message : String(error)));
-        throw error;
       }
-    } else {
-      try {
-        const storedCart = localStorage.getItem('guestCart');
-        const guestItems: CartItem[] = storedCart ? JSON.parse(storedCart) : [];
-
-        const updatedCart = guestItems.find((item) => item.product_id === product.id)
-          ? guestItems.map((item) =>
-              item.product_id === product.id ? { ...item, quantity: item.quantity + quantity } : item
-            )
-          : [...guestItems, cartItem];
-
-        localStorage.setItem('guestCart', JSON.stringify(updatedCart));
-        setCartItems(updatedCart);
-      } catch (error) {
-        console.error('[CartContext] Error saving guest cart:', error);
-        toast.error('Failed to save guest cart: ' + (error instanceof Error ? error.message : String(error)));
+      localStorage.setItem('guestCart', JSON.stringify(guestCart));
+      setCartItems(guestCart);
+      toast.success(`${product.name} added to cart!`);
+      return;
+    }
+    // Auth user: backend fetch
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const payload = {
+        user_id: user.id,
+        product_id: product.id,
+        name: product.name,
+        price: product.price,
+        quantity,
+        imageUrl: product.imageUrl,
+        slug: product.slug,
+        sku: product.sku
+      };
+      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.detail || 'Failed to add item to cart');
       }
+      const updatedItem = await res.json();
+      setCartItems((prevItems) => {
+        const existingItem = prevItems.find((item) => item.product_id === product.id);
+        if (existingItem) {
+          return prevItems.map((item) =>
+            item.product_id === product.id ? updatedItem : item
+          );
+        } else {
+          return [...prevItems, updatedItem];
+        }
+      });
+      toast.success(`${product.name} added to cart`);
+    } catch (error: any) {
+      console.error('[CartContext] Error adding to cart:', error);
+      toast.error(error.message || 'Could not add item.');
     }
   };
 
   const removeItemFromCart = async (productId: string) => {
-    setCartItems((prev) => prev.filter((item) => item.product_id !== productId));
-    // TODO: Add backend removal if needed
-    // e.g., await removeFromCartBackend(user?.id, productId);
+    if (!user || !getToken) {
+      // Guest: localStorage
+      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+      const updatedCart = guestCart.filter((item: CartItem) => item.product_id !== productId);
+      localStorage.setItem('guestCart', JSON.stringify(updatedCart));
+      setCartItems(updatedCart);
+      toast.success('Item removed.');
+      return;
+    }
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) throw new Error('Failed to remove item');
+      setCartItems((prev) => prev.filter((item) => item.product_id !== productId));
+      toast.success('Item removed.');
+    } catch (error) {
+      console.error('[CartContext] Failed to remove item:', error);
+      toast.error('Could not remove item.');
+    }
   };
 
   const updateItemQuantity = async (productId: string, quantity: number) => {
-    setCartItems((prev) =>
-      prev.map((item) => (item.product_id === productId ? { ...item, quantity } : item))
-    );
-    // TODO: Add backend update if needed
-    // e.g., await updateCartQuantityBackend(user?.id, productId, quantity);
+    if (quantity < 1) {
+      await removeItemFromCart(productId);
+      return;
+    }
+    if (!user || !getToken) {
+      // Guest: localStorage
+      const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+      const updatedCart = guestCart.map((item: CartItem) =>
+        item.product_id === productId ? { ...item, quantity } : item
+      );
+      localStorage.setItem('guestCart', JSON.stringify(updatedCart));
+      setCartItems(updatedCart);
+      return;
+    }
+    try {
+      const token = await getToken({ template: 'supabase' });
+      const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ quantity })
+      });
+      if (!response.ok) throw new Error('Failed to update quantity');
+      const updatedItem = await response.json();
+      setCartItems((prev) =>
+        prev.map((item) => (item.product_id === productId ? updatedItem : item))
+      );
+    } catch (error) {
+      console.error('[CartContext] Failed to update quantity:', error);
+      toast.error('Could not update quantity.');
+    }
   };
 
-  const clearCart = async () => {
+  const clearCart = () => {
     setCartItems([]);
-    if (user?.id) {
-      try {
-        // If your backend supports clearing cart:
-        // await clearUserCartBackend(user.id);
-      } catch (error) {
-        console.error('[CartContext] Failed to clear backend cart:', error);
-      }
-    } else {
-      localStorage.removeItem('guestCart');
-    }
+    localStorage.removeItem('guestCart');
+    // Optionally: clear backend cart for signed-in users here, if you wish
   };
 
   const cartTotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
