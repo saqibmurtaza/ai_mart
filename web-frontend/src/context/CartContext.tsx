@@ -1,5 +1,7 @@
 'use client';
 
+console.log('FASTAPI URL:', process.env.NEXT_PUBLIC_FASTAPI_URL);
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { toast } from 'react-hot-toast';
@@ -27,25 +29,25 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [loadingCart, setLoadingCart] = useState(true);
   const [errorCart, setErrorCart] = useState<string | null>(null);
 
-  // --- Step 1: On load/sign-in/sign-out, load correct cart (guest/server) ---
+  // Load (guest or user) cart at mount/login
   useEffect(() => {
     const loadCart = async () => {
       setLoadingCart(true);
       setErrorCart(null);
+
       if (!user || !getToken) {
-        // Guest: use localStorage, never call backend!
+        // GUEST mode
         const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
         setCartItems(guestCart);
         setLoadingCart(false);
         return;
       }
-      // Logged-in: backend cart
       try {
-        const token = await getToken({ template: 'supabase' });
-        const items = await fetchCartItems(user.id, token);
+        const token = await getToken({ template: 'supabase' }) ?? undefined;
+        const items = await fetchCartItems(token);
         setCartItems(items ?? []);
       } catch (err) {
-        setCartItems([]); // fallback to empty, backend failed
+        setCartItems([]);
         setErrorCart('Failed to load cart');
       } finally {
         setLoadingCart(false);
@@ -54,13 +56,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     loadCart();
   }, [user, getToken]);
 
-  // --- Step 2: Guest-to-User cart merge on login ---
+  // Guest-to-user cart merge after login
   useEffect(() => {
     if (!user || !getToken) return;
     const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
     if (!guestCart.length) return;
     const mergeGuestCart = async () => {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken({ template: 'supabase' }) ?? undefined;
       for (const item of guestCart) {
         try {
           await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart`, {
@@ -70,7 +72,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               'Authorization': `Bearer ${token}`
             },
             body: JSON.stringify({
-              user_id: user.id,
+              // Do NOT send user_id if your backend infers user from JWT
+              // user_id: user.id,
               product_id: item.product_id,
               name: item.name,
               price: item.price,
@@ -80,14 +83,13 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
               sku: item.sku
             })
           });
-        } catch {
+        } catch (err) {
           // Optionally toast or log
         }
       }
       localStorage.removeItem('guestCart');
-      // Reload backend cart
       try {
-        const items = await fetchCartItems(user.id, token);
+        const items = await fetchCartItems(token);
         setCartItems(items ?? []);
       } catch {
         setCartItems([]);
@@ -97,15 +99,17 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
     // eslint-disable-next-line
   }, [user, getToken]);
 
-  // --- Add to Cart: guest uses local, user uses backend ---
+  // ===============================
+  // >> Hardened addItemToCart   <<
+  // ===============================
   const addItemToCart = async (product: Product & { quantity?: number }) => {
-    const quantity = product.quantity ?? 1;
-    if (!product || !product.id) {
-      toast.error('Cannot add item: Product info missing.');
+    if (!product || typeof product !== "object" || !product.id) {
+      toast.error('Cannot add item: Product info missing or corrupted.');
       return;
     }
+    const quantity = product.quantity ?? 1;
     if (!user || !getToken) {
-      // Guest: localStorage cart
+      // Guest mode
       const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
       const idx = guestCart.findIndex((item: CartItem) => item.product_id === product.id);
       if (idx > -1) {
@@ -127,11 +131,11 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       toast.success(`${product.name} added to cart!`);
       return;
     }
-    // Auth user: backend fetch
     try {
-      const token = await getToken({ template: 'supabase' });
+      const token = await getToken({ template: 'supabase' }) ?? undefined;
       const payload = {
-        user_id: user.id,
+        // Do NOT send user_id if backend infers user from JWT
+        // user_id: user.id,
         product_id: product.id,
         name: product.name,
         price: product.price,
@@ -140,7 +144,12 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         slug: product.slug,
         sku: product.sku
       };
-      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart`, {
+      // ------- HARDENED: Never use a dynamic endpoint! -------
+      const endpoint = `${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart`;
+      if (!endpoint || endpoint.includes('undefined') || endpoint.includes('/products/')) {
+        throw new Error('Cart API URL misconfiguration');
+      }
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -149,8 +158,14 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         body: JSON.stringify(payload)
       });
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.detail || 'Failed to add item to cart');
+        let errorData, errorText;
+        try {
+          errorData = await res.json();
+        } catch (err) {
+          errorText = await res.text();
+          throw new Error(`Server error: ${res.status} - ${errorText?.slice(0, 80)}`);
+        }
+        throw new Error(errorData?.detail || 'Failed to add item to cart');
       }
       const updatedItem = await res.json();
       setCartItems((prevItems) => {
@@ -172,7 +187,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
 
   const removeItemFromCart = async (productId: string) => {
     if (!user || !getToken) {
-      // Guest: localStorage
       const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
       const updatedCart = guestCart.filter((item: CartItem) => item.product_id !== productId);
       localStorage.setItem('guestCart', JSON.stringify(updatedCart));
@@ -181,12 +195,12 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      const token = await getToken({ template: 'supabase' });
-      const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
+      const token = await getToken({ template: 'supabase' }) ?? undefined;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Failed to remove item');
+      if (!res.ok) throw new Error('Failed to remove item');
       setCartItems((prev) => prev.filter((item) => item.product_id !== productId));
       toast.success('Item removed.');
     } catch (error) {
@@ -201,7 +215,6 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     if (!user || !getToken) {
-      // Guest: localStorage
       const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
       const updatedCart = guestCart.map((item: CartItem) =>
         item.product_id === productId ? { ...item, quantity } : item
@@ -211,8 +224,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
       return;
     }
     try {
-      const token = await getToken({ template: 'supabase' });
-      const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
+      const token = await getToken({ template: 'supabase' }) ?? undefined;
+      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -220,8 +233,8 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         },
         body: JSON.stringify({ quantity })
       });
-      if (!response.ok) throw new Error('Failed to update quantity');
-      const updatedItem = await response.json();
+      if (!res.ok) throw new Error('Failed to update quantity');
+      const updatedItem = await res.json();
       setCartItems((prev) =>
         prev.map((item) => (item.product_id === productId ? updatedItem : item))
       );

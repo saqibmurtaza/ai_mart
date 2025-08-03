@@ -16,6 +16,23 @@ import {
   UserButton,
 } from '@clerk/nextjs';
 
+if (typeof window !== "undefined") {
+  const originalFetch = window.fetch;
+  window.fetch = function (...args) {
+    if (
+      args[0] &&
+      typeof args[0] === "string" &&
+      args[0].includes("/products/") &&
+      args[0].includes("/cart")
+    ) {
+      debugger; // Pauses JS *at the callsite* in DevTools
+      console.warn("[Global Fetch Debug] 🚨 Add to Cart attempt:", args[0]);
+    }
+    return originalFetch.apply(this, args);
+  };
+}
+
+
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {

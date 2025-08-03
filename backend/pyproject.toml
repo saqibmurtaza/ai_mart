@@ -18,6 +18,7 @@ dependencies = [
     "rich", # For better CLI logs (optional, but nice for development)
     "orjson", # Faster JSON parsing in FastAPI (optional, but improves performance)
     "fastapi>=0.115.14",
+    "python-jose>=3.5.0",
 ]
 [tool.uv]
 dev-dependencies = [

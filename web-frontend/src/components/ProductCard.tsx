@@ -6,7 +6,6 @@ import { useUser } from '@clerk/nextjs';
 import { Product } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { useCart } from '@/context/CartContext';
-import { CartItemInput } from '@/context/CartContext';
 
 interface ProductCardProps {
   product: Product;

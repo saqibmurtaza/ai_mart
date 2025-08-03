@@ -1,4 +1,18 @@
-// src/lib/api.tsx
+import { createClient } from '@sanity/client';
+
+const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
+const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
+
+if (!projectId || !dataset) {
+  throw new Error("Missing Sanity environment variables. Check NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET.");
+}
+
+export const sanityClient = createClient({
+  projectId,
+  dataset,
+  apiVersion: '2023-05-03',
+  useCdn: process.env.NODE_ENV === 'production',
+});
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
 
@@ -126,21 +140,28 @@ export interface AddToCartPayload {
   alt?: string;
 }
 
-export async function getCart(userId: string): Promise<Cart> {
-  try {
-    const res = await fetch(`${FASTAPI_URL}/cart/${userId}`);
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({ detail: 'Failed to fetch cart' }));
-      throw new Error(errData.detail || `HTTP error: ${res.status}`);
-    }
-    const data = await res.json();
-    const cart = data.cart || [];
-    const total_price = cart.reduce((sum: number, item: CartItem) => sum + item.price * item.quantity, 0);
-    return { cart, total_price };
-  } catch (err: any) {
-    console.error('getCart error:', err.message, err.stack);
-    throw new Error(`Failed to fetch cart: ${err.message}`);
+// Only for guest/localStorage use; do NOT call for logged-in users!
+export async function getCart(): Promise<Cart> {
+  throw new Error("getCart(userId) is removed; use fetchCartItems(token) for authenticated cart fetch.");
+}
+
+// --- CART OPERATIONS ---
+
+// Fetch the authenticated user's cart with JWT (do not pass userId)
+export async function fetchCartItems(token?: string): Promise<CartItem[]> {
+  const headers: Record<string, string> = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  const res = await fetch(`${FASTAPI_URL}/cart`, { method: 'GET', headers });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('Failed to fetch cart items:', errorText);
+    throw new Error(`Failed to fetch cart items: ${res.status}`);
   }
+  const data = await res.json();
+  if (!data.cart) throw new Error('Cart items missing from response');
+  return data.cart as CartItem[];
 }
 
 export async function addToCart(payload: AddToCartPayload, token?: string): Promise<CartItem> {
@@ -152,12 +173,10 @@ export async function addToCart(payload: AddToCartPayload, token?: string): Prom
       headers,
       body: JSON.stringify(payload),
     });
-
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: 'Failed to add to cart' }));
       throw new Error(errData.detail || `HTTP error: ${res.status}`);
     }
-
     return res.json();
   } catch (err: any) {
     console.error('addToCart error:', err.message, err.stack);
@@ -165,20 +184,19 @@ export async function addToCart(payload: AddToCartPayload, token?: string): Prom
   }
 }
 
-export async function removeFromCart(userId: string, productId: string, token?: string): Promise<any> {
+// Remove a cart item (DELETE /cart/{productId} for the authorised user)
+export async function removeFromCart(productId: string, token?: string): Promise<any> {
   try {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${FASTAPI_URL}/cart/${userId}/${productId}`, {
+    const res = await fetch(`${FASTAPI_URL}/cart/${productId}`, {
       method: 'DELETE',
       headers,
     });
-
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: 'Failed to remove from cart' }));
       throw new Error(errData.detail || `HTTP error: ${res.status}`);
     }
-
     return res.json();
   } catch (err: any) {
     console.error('removeFromCart error:', err.message, err.stack);
@@ -186,26 +204,20 @@ export async function removeFromCart(userId: string, productId: string, token?: 
   }
 }
 
-export async function updateCartItemQuantity(
-  userId: string,
-  productId: string,
-  quantity: number,
-  token?: string
-): Promise<any> {
+// Update item quantity (PUT /cart/{productId}, for authenticated user)
+export async function updateCartItemQuantity(productId: string, quantity: number, token?: string): Promise<any> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${FASTAPI_URL}/cart/${userId}/${productId}`, {
+    const res = await fetch(`${FASTAPI_URL}/cart/${productId}`, {
       method: 'PUT',
       headers,
       body: JSON.stringify({ quantity }),
     });
-
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: 'Failed to update item quantity' }));
       throw new Error(errData.detail || `HTTP error: ${res.status}`);
     }
-
     return res.json();
   } catch (err: any) {
     console.error('updateCartItemQuantity error:', err.message, err.stack);
@@ -248,12 +260,10 @@ export async function checkout(payload: CheckoutPayload, token?: string): Promis
       headers,
       body: JSON.stringify(payload),
     });
-
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: 'Checkout failed' }));
       throw new Error(errData.detail || `HTTP error: ${res.status}`);
     }
-
     return res.json();
   } catch (err: any) {
     console.error('checkout error:', err.message, err.stack);
@@ -261,46 +271,19 @@ export async function checkout(payload: CheckoutPayload, token?: string): Promis
   }
 }
 
-export async function getOrders(userId: string, token?: string): Promise<Order[]> {
+export async function getOrders(token?: string): Promise<Order[]> {
   try {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const res = await fetch(`${FASTAPI_URL}/orders/${userId}`, { headers });
+    const res = await fetch(`${FASTAPI_URL}/orders`, { headers });
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: 'Failed to fetch orders' }));
       throw new Error(errData.detail || `HTTP error: ${res.status}`);
     }
-
     const data = await res.json();
     return data.orders || [];
   } catch (err: any) {
     console.error('getOrders error:', err.message, err.stack);
     throw new Error(`Failed to fetch orders: ${err.message}`);
   }
-}
-
-// -------- FINAL FIX: fetchCartItems --------
-export async function fetchCartItems(userId: string, token?: string): Promise<CartItem[]> {
-  const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-  const res = await fetch(`${FASTAPI_URL}/cart/${userId}`, {
-    method: 'GET',
-    headers,
-  });
-
-  if (!res.ok) {
-    const errorText = await res.text();
-    console.error('Failed to fetch cart items:', errorText);
-    throw new Error(`Failed to fetch cart items: ${res.status}`);
-  }
-
-  const data = await res.json();
-
-  if (!data.cart) {
-    console.error('Cart data missing in response:', data);
-    throw new Error('Cart items missing from response');
-  }
-
-  return data.cart as CartItem[];
 }

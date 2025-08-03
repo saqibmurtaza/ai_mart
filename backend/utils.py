@@ -6,7 +6,15 @@ import logging
 from typing import Optional
 from fastapi import Request, HTTPException
 from supabase import create_client, Client
-from database.db import supabase_url, supabase_key, supabase_public
+from jose import jwt as jose_jwt, JWTError
+from config.settings import settings
+from dotenv import load_dotenv
+import os
+
+# --- Set your project secrets/config here ---
+supabase_url= os.getenv('NEXT_PUBLIC_SUPABASE_URL')
+supabase_key = os.getenv('SUPABASE_SECRET_KEY')  
+supabase_public = create_client(supabase_url, supabase_key)
 
 logger = logging.getLogger("main")
 
@@ -23,7 +31,6 @@ def verify_sanity_webhook_signature(
 ) -> None:
     """
     Verify Sanity webhook signature with timestamp freshness.
-
     Raises SignatureValidationError on failure.
     """
     if not signature_header:
@@ -57,9 +64,7 @@ def verify_sanity_webhook_signature(
 
     # Signed payload is: "<timestamp>.<body>"
     signed_payload = f"{timestamp_str}.".encode("utf-8") + body
-
     computed_hmac = hmac.new(secret.encode("utf-8"), signed_payload, hashlib.sha256).digest()
-
     computed_signature = base64.urlsafe_b64encode(computed_hmac).rstrip(b"=").decode("utf-8")
 
     logger.info(f"Computed signature: {computed_signature}")
@@ -75,29 +80,51 @@ def normalize_product_id(product_id: str) -> str:
     return product_id
 
 
-# Function to get Supabase client with JWT from request
+# --- Clerk JWT decoding ---
+def get_clerk_sub_from_jwt(token: str) -> str:
+    """
+    Extract the Clerk 'sub' (user_id) from a JWT.
+    In production you should verify the JWT signature against Clerk's JWKS.
+    Here, for dev, we only decode.
+    """
+    try:
+        decoded = jose_jwt.get_unverified_claims(token)
+        sub = decoded.get("sub")
+        if not sub:
+            raise HTTPException(status_code=401, detail="Token missing sub claim")
+        return sub
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid auth token")
 
-def get_supabase_client(request: Request) -> Client:
+
+def get_supabase_client_and_user(request: Request):
+    """
+    Returns a supabase client (with service role key) and the authenticated user's Clerk ID (from JWT).
+    """
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        print("DEBUG: No or invalid Authorization header")
         raise HTTPException(status_code=401, detail="Unauthorized")
-    jwt = auth_header.split(" ")[1]
-    print(f"DEBUG: Extracted JWT: {jwt[:10]}...")  # Don't log full token
-    return create_client(supabase_url, supabase_key, headers={"Authorization": f"Bearer {jwt}"})
+    jwt_token = auth_header.split(" ")[1]
+    user_id = get_clerk_sub_from_jwt(jwt_token)
+    supabase = create_client(supabase_url, supabase_key)
+    return supabase, user_id
 
 
-# Function to fetch product by ID from Supabase
+def get_supabase_client(request: Request):
+    """
+    Legacy API: only returns supabase client, not user id (not recommended for per-user logic).
+    """
+    supabase, _ = get_supabase_client_and_user(request)
+    return supabase
 
-async def fetch_product_by_supabase_id(product_id: str, supabase_client=None):
-    """Fetch a product from Supabase by its ID, using the right client."""
+
+def fetch_product_by_supabase_id(product_id: str, supabase_client=None):
+    """
+    Synchronously fetch a product from Supabase by its ID.
+    Do NOT make this async unless you use the async supabase client!
+    """
     client = supabase_client or supabase_public
-
-    # If your .execute() method is awaitable, use await; else leave as sync.
-    # Example for async-supabase client:
-    result = await client.table("product").select("*").eq("id", product_id).execute()
-    # If your client is not awaitable, just: result = client.table(...).execute()
-
+    result = client.table("product").select("*").eq("id", product_id).execute()
     if result.data and len(result.data) > 0:
         return result.data[0]
     return None

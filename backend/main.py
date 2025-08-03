@@ -27,7 +27,14 @@ from dotenv import load_dotenv
 import hmac, time, base64 # New Import
 import hashlib # New Import
 import os # New Import
-from utils import SignatureValidationError, verify_sanity_webhook_signature, normalize_product_id, get_supabase_client
+from utils import (
+    SignatureValidationError, 
+    verify_sanity_webhook_signature, normalize_product_id, 
+    get_supabase_client, fetch_product_by_supabase_id,
+    get_supabase_client_and_user,
+    fetch_product_by_supabase_id,
+    normalize_product_id,
+    )
 from supabase import Client
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -41,14 +48,6 @@ if not SANITY_WEBHOOK_SECRET:
     logger.error("SANITY_WEBHOOK_SECRET environment variable not set. Webhook verification will be skipped.")
     # Optionally, you can raise an error or handle it gracefully
     raise ValueError("SANITY_WEBHOOK_SECRET environment variable not set.")   
-
-
-async def fetch_product_by_supabase_id(product_id: str):
-    """Fetches a product from the Supabase 'product' table by its ID."""
-    result = supabase_public.table("product").select("*").eq("id", product_id).execute()
-    if result.data and len(result.data) > 0:
-        return result.data[0]
-    return None
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -266,60 +265,67 @@ async def get_categories_endpoint():
         raise HTTPException(status_code=500, detail="Failed to fetch categories")
 
 # --- CART ENDPOINTS (Modified to use Supabase product table) ---
+
 @app.post("/cart", response_model=CartItem)
 async def add_to_cart(
     payload: CartItem,
-    supabase_client: Client = Depends(get_supabase_client),  # JWT client
+    request: Request
 ):
+    supabase_client, user_id = get_supabase_client_and_user(request)
+
     logger.info(f"Received add-to-cart payload: {payload.model_dump()}")
 
     product_id = normalize_product_id(payload.product_id)
-    product = await fetch_product_by_supabase_id(product_id)
+    # fetch_product_by_supabase_id should be sync unless you use async supabase
+    product = fetch_product_by_supabase_id(product_id, supabase_client)
 
     if not product:
         logger.error(f"Product not found in Supabase for id: {product_id}")
         raise HTTPException(status_code=404, detail=f"Product with ID {product_id} not found in Supabase")
 
-    existing_item_resp = supabase_client.table("cartitem")\
-        .select("quantity")\
-        .eq("user_id", payload.user_id)\
-        .eq("product_id", product_id)\
-        .execute()
+    # Always override any user_id from client with the authenticated one
+    payload_dict = payload.model_dump(by_alias=True)
+    payload_dict["user_id"] = user_id
+    payload_dict["product_id"] = product_id
 
+    # Check if item exists for this user/product
+    existing_item_resp = supabase_client.table("cartitem") \
+        .select("quantity") \
+        .eq("user_id", user_id) \
+        .eq("product_id", product_id) \
+        .execute()
     existing_item_data = existing_item_resp.data or []
 
     if existing_item_data:
         current_quantity = existing_item_data[0]["quantity"]
         new_quantity = current_quantity + payload.quantity
-
-        result = supabase_client.table("cartitem")\
-            .update({"quantity": new_quantity})\
-            .eq("user_id", payload.user_id)\
-            .eq("product_id", product_id)\
+        result = supabase_client.table("cartitem") \
+            .update({"quantity": new_quantity}) \
+            .eq("user_id", user_id) \
+            .eq("product_id", product_id) \
             .execute()
     else:
-        payload_dict = payload.model_dump(by_alias=True)
-        payload_dict["product_id"] = product_id
-
-        result = supabase_client.table("cartitem")\
-            .upsert(payload_dict)\
+        result = supabase_client.table("cartitem") \
+            .upsert(payload_dict) \
             .execute()
 
     if result.data:
         return CartItem.model_validate(result.data[0], from_attributes=True)
     raise HTTPException(status_code=500, detail="Cart update failed.")
 
+# ----------------------
+
 @app.get("/cart", response_model=Dict[str, Any])
 async def get_cart(
-    supabase_client: Client = Depends(get_supabase_client),  # JWT client
-    user_id: Optional[str] = None,  # Not needed if RLS prevents seeing others' carts!
-    ):
-    result = supabase_client.table("cartitem").select("*").execute()
+    request: Request,
+):
+    supabase_client, user_id = get_supabase_client_and_user(request)
+    result = supabase_client.table("cartitem").select("*").eq("user_id", user_id).execute()
     cart_items_data = result.data or []
 
     enriched_cart = []
     for item in cart_items_data:
-        product = await fetch_product_by_supabase_id(item["product_id"])
+        product = fetch_product_by_supabase_id(item["product_id"], supabase_client)
         enriched_cart.append({
             "user_id": item["user_id"],
             "product_id": item["product_id"],
@@ -333,50 +339,51 @@ async def get_cart(
         })
     return {"message": "Cart retrieved", "cart": enriched_cart}
 
+# ----------------------
 
 @app.put("/cart/{product_id}", response_model=CartItem)
 async def update_cart_item_quantity(
+    request: Request,
     product_id: str,
     payload: dict = Body(...),
-    supabase_client: Client = Depends(get_supabase_client),  # JWT client
 ):
+    supabase_client, user_id = get_supabase_client_and_user(request)
     quantity = payload.get("quantity")
     if quantity is None or not isinstance(quantity, int) or quantity < 1:
         raise HTTPException(status_code=400, detail="Quantity must be a positive integer")
-
     norm_product_id = normalize_product_id(product_id)
     existing_resp = supabase_client.table("cartitem") \
         .select("*") \
+        .eq("user_id", user_id) \
         .eq("product_id", norm_product_id) \
         .execute()
-
     if not existing_resp.data:
         raise HTTPException(status_code=404, detail="Cart item not found")
-
     result = supabase_client.table("cartitem") \
         .update({"quantity": quantity}) \
+        .eq("user_id", user_id) \
         .eq("product_id", norm_product_id) \
         .execute()
-
     if result.data:
         return CartItem.model_validate(result.data[0], from_attributes=True)
     raise HTTPException(status_code=500, detail="Failed to update cart item quantity")
 
+# ----------------------
 
 @app.delete("/cart/{product_id}")
 async def remove_from_cart(
     product_id: str,
-    supabase_client: Client = Depends(get_supabase_client),  # JWT client
+    request: Request
 ):
-    print("\n====== Incoming Request Headers ======")
-    for k, v in request.headers.items():
-        print(f"{k}: {v}")
-    print("======================================\n")
+    supabase_client, user_id = get_supabase_client_and_user(request)
     result = supabase_client.table("cartitem") \
         .delete() \
+        .eq("user_id", user_id) \
         .eq("product_id", product_id) \
         .execute()
     return {"message": "Item removed from cart", "data": result.data}
+
+
 
 # --- CHECKOUT ENDPOINTS (Modified to use Supabase product table) ---
 @app.post("/checkout")
