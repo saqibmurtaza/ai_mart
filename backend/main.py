@@ -364,8 +364,8 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
         created_at=datetime.now(timezone.utc)
     )
     session.add(order)
-    await session.commit()
-    await session.refresh(order)
+    # await session.commit()
+    # await session.refresh(order)
     # Add OrderItems
     for item in processed_cart_items:
         order_item = OrderItem(
@@ -384,9 +384,21 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
     for i in res.all():
         await session.delete(i)
     await session.commit()
+    await session.refresh(order)
     return {"message": "Order placed successfully", "order_id": order.id}
 
 # --- VIEW ORDERS ---
+@app.get("/orders")
+async def get_orders(
+     request: Request,
+    session: AsyncSession = Depends(get_session)
+    ):
+    print("GET /orders called")
+    user_id = get_supabase_client_and_user(request)
+    stmt = select(Order).where(Order.user_id == user_id)
+    res = await session.exec(stmt)
+    return res.all()
+
 @app.get("/orders/{user_id}", response_model=Dict[str, Any])
 async def get_orders(user_id: str, session: AsyncSession = Depends(get_session)):
     orders = await fetch_orders_for_user_async(user_id, session)
