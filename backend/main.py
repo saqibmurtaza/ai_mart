@@ -397,10 +397,12 @@ async def get_orders(
     user_id = get_supabase_client_and_user(request)
     stmt = select(Order).where(Order.user_id == user_id)
     res = await session.exec(stmt)
-    return res.all()
+    orders = res.all()
+    # return res.all()
+    return {"message": "Orders retrieved", "orders": orders}
 
-@app.get("/orders/{user_id}", response_model=Dict[str, Any])
-async def get_orders(user_id: str, session: AsyncSession = Depends(get_session)):
+@app.get("/orders/by_user/{user_id}", response_model=Dict[str, Any])  # <<<<< changed path
+async def get_orders_by_user(user_id: str, session: AsyncSession = Depends(get_session)):
     orders = await fetch_orders_for_user_async(user_id, session)
     return {"message": "Orders retrieved", "orders": orders}
 
