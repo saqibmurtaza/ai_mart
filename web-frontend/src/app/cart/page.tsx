@@ -1,11 +1,17 @@
 'use client';
 
+import { useUser, SignInButton } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
+
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCallback } from 'react';
 import { useCart } from '@/context/CartContext';
 
 export default function CartPage() {
+  const { user } = useUser();
+  const router = useRouter();
+
   const {
     cart,
     cartTotal,
@@ -116,11 +122,24 @@ export default function CartPage() {
             Continue Shopping
           </button>
         </Link>
-        <Link href="/checkout">
-          <button className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-8 rounded-lg font-bold text-lg disabled:bg-blue-300">
-            Proceed to Checkout
-          </button>
-        </Link>
+        {user ? (
+  <button
+    className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-8 rounded-lg font-bold text-lg disabled:bg-blue-300"
+    onClick={() => router.push("/checkout")}
+  >
+    Proceed to Checkout
+  </button>
+) : (
+  <SignInButton mode="modal">
+    <button
+      className="bg-blue-600 hover:bg-blue-700 text-white py-3 px-8 rounded-lg font-bold text-lg"
+      type="button"
+    >
+      Sign in to Checkout
+    </button>
+  </SignInButton>
+)}
+
       </div>
     </div>
   );

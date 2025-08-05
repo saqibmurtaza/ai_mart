@@ -1,4 +1,6 @@
 'use client';
+import { useAuth } from "@clerk/nextjs";
+
 
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
@@ -6,15 +8,16 @@ import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { checkout, CartItem } from '@/lib/api'; // Ensure CartItem is imported here
+import { checkout, CartItem } from '@/lib/api';
+import { useUser, SignInButton } from "@clerk/nextjs";
 
 export default function CheckoutPage() {
-  // Use 'cart' instead of 'cartItems'
   const { cart, cartTotal, loadingCart, errorCart, removeItemFromCart, addItemToCart, updateItemQuantity } = useCart();
+  const { user, isLoaded } = useUser();
+  const { getToken } = useAuth();
+
   const router = useRouter();
 
-  // You can later add clearCart() in context and call it here if you want to clear cart after checkout
-  
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
@@ -26,9 +29,6 @@ export default function CheckoutPage() {
     country: '',
   });
   const [formErrors, setFormErrors] = useState<Partial<typeof formData>>({});
-
-  // Guest user assumed for now
-  const user = { id: 'guest' };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -65,11 +65,11 @@ export default function CheckoutPage() {
     ].filter(Boolean).join(', ');
 
     const orderPayload = {
-      user_id: user.id,
-      email: formData.email,
+      user_id: user!.id, // Clerk user id—secure
+      email: user!.primaryEmailAddress?.emailAddress || formData.email,
       shipping_address: shippingAddressString,
       cart_items: cart.map((item: CartItem) => ({
-        user_id: item.user_id,        // <-- Added user_id as required by backend
+        user_id: item.user_id,
         product_id: item.product_id,
         quantity: item.quantity,
         price: item.price,
@@ -81,12 +81,11 @@ export default function CheckoutPage() {
     };
 
     try {
-      const result = await checkout(orderPayload);
+      const token = await getToken({ template: "supabase" }) || undefined;
+      const result = await checkout(orderPayload, token);
       toast.success(`Order placed successfully! Order ID: ${result.order_id}`);
-
-      // Optionally clear cart here if you add `clearCart()` in useCart context
-
       router.push(`/orders`);
+
     } catch (error: any) {
       console.error('Checkout failed:', error);
       toast.error(`Failed to process checkout: ${error.message}`);
@@ -95,10 +94,12 @@ export default function CheckoutPage() {
     }
   };
 
-  if (loadingCart) {
+  // ---------- PAGE GUARDS & LOADING ----------
+
+  if (loadingCart || !isLoaded) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
-        <h1 className="text-2xl font-semibold">Loading...</h1>
+        <span className="loading loading-dots loading-lg" /> Loading...
       </div>
     );
   }
@@ -115,6 +116,20 @@ export default function CheckoutPage() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="container mx-auto px-4 py-8 text-center">
+        <h1 className="text-2xl font-bold mb-4">Sign in to Checkout</h1>
+        <SignInButton mode="modal">
+          <button className="btn btn-primary">Sign in</button>
+        </SignInButton>
+        <div className="mt-4">
+          <Link href="/cart" className="text-blue-600 hover:underline">Back to Cart</Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!cart || cart.length === 0) {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
@@ -126,6 +141,8 @@ export default function CheckoutPage() {
       </div>
     );
   }
+
+  // ---------- CHECKOUT PAGE FOR SIGNED IN USERS ONLY ----------
 
   return (
     <div className="container mx-auto px-4 py-8">

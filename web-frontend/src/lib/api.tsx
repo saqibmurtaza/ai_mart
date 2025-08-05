@@ -1,5 +1,6 @@
 import { createClient } from '@sanity/client';
 
+// --- Environment Variables & Constants ---
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
 
@@ -16,7 +17,7 @@ export const sanityClient = createClient({
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
 
-// -------- GENERAL & HOMEPAGE TYPES AND FUNCTIONS --------
+// ----------- TYPES -----------
 
 export interface Category {
   _id: string;
@@ -51,34 +52,14 @@ export interface HomepageSection {
   description?: any;
 }
 
-export async function getCategories(): Promise<Category[]> {
-  const res = await fetch(`${FASTAPI_URL}/categories`);
-  if (!res.ok) throw new Error("Failed to fetch categories");
-  return res.json();
-}
-
-export async function getContentBlocks(): Promise<ContentBlock[]> {
-  const res = await fetch(`${FASTAPI_URL}/content-blocks`);
-  if (!res.ok) throw new Error("Failed to fetch content blocks");
-  return res.json();
-}
-
-export async function getHomepageSection(slug: string): Promise<HomepageSection> {
-  const res = await fetch(`${FASTAPI_URL}/homepage/sections/${slug}`);
-  if (!res.ok) throw new Error(`Failed to fetch homepage section: ${slug}`);
-  return res.json();
-}
-
-// -------- PRODUCT TYPES AND FUNCTIONS --------
-
 export interface ProductImage {
   url: string;
   description: string;
 }
 
 export interface Product {
-  _id: string; // Sanity ID, used in frontend
-  id: string;  // Supabase ID, used in backend
+  _id: string; // Sanity ID (frontend)
+  id: string;  // Supabase ID (backend)
   name: string;
   slug: string;
   description: string;
@@ -90,26 +71,6 @@ export interface Product {
   sku?: string;
   alt?: string;
 }
-
-export async function getProducts(): Promise<Product[]> {
-  const res = await fetch(`${FASTAPI_URL}/products`);
-  if (!res.ok) throw new Error("Failed to fetch products");
-  return res.json();
-}
-
-export async function getProductBySlug(slug: string): Promise<Product> {
-  const res = await fetch(`${FASTAPI_URL}/products/${slug}`);
-  if (!res.ok) throw new Error("Failed to fetch product");
-  return res.json();
-}
-
-export async function getFeaturedProducts(): Promise<Product[]> {
-  const res = await fetch(`${FASTAPI_URL}/products/featured`);
-  if (!res.ok) throw new Error("Failed to fetch featured products");
-  return res.json();
-}
-
-// -------- CART TYPES AND FUNCTIONS --------
 
 export interface CartItem {
   user_id: string;
@@ -140,20 +101,74 @@ export interface AddToCartPayload {
   alt?: string;
 }
 
-// Only for guest/localStorage use; do NOT call for logged-in users!
-export async function getCart(): Promise<Cart> {
-  throw new Error("getCart(userId) is removed; use fetchCartItems(token) for authenticated cart fetch.");
+export interface CheckoutPayload {
+  user_id?: string | null;
+  email?: string;
+  shipping_address: string;
+  cart_items?: CartItem[];
 }
 
-// --- CART OPERATIONS ---
+export interface Order {
+  id: string;
+  user_id: string;
+  shipping_address: string;
+  total_amount: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  created_at: string;
+  items: CartItem[];
+}
 
-// Fetch the authenticated user's cart with JWT (do not pass userId)
+// ----------- API FUNCTIONS -----------
+
+// ----- General Navigation -----
+export async function getCategories(): Promise<Category[]> {
+  const res = await fetch(`${FASTAPI_URL}/categories`);
+  if (!res.ok) throw new Error("Failed to fetch categories");
+  return res.json();
+}
+
+export async function getContentBlocks(): Promise<ContentBlock[]> {
+  const res = await fetch(`${FASTAPI_URL}/content-blocks`);
+  if (!res.ok) throw new Error("Failed to fetch content blocks");
+  return res.json();
+}
+
+export async function getHomepageSection(slug: string): Promise<HomepageSection> {
+  const res = await fetch(`${FASTAPI_URL}/homepage/sections/${slug}`);
+  if (!res.ok) throw new Error(`Failed to fetch homepage section: ${slug}`);
+  return res.json();
+}
+
+// ----- Product Helpers -----
+export async function getProducts(): Promise<Product[]> {
+  const res = await fetch(`${FASTAPI_URL}/products`);
+  if (!res.ok) throw new Error("Failed to fetch products");
+  return res.json();
+}
+
+export async function getProductBySlug(slug: string): Promise<Product> {
+  const res = await fetch(`${FASTAPI_URL}/products/${slug}`);
+  if (!res.ok) throw new Error("Failed to fetch product");
+  return res.json();
+}
+
+export async function getFeaturedProducts(): Promise<Product[]> {
+  const res = await fetch(`${FASTAPI_URL}/products/featured`);
+  if (!res.ok) throw new Error("Failed to fetch featured products");
+  return res.json();
+}
+
+// ----- Cart Functions -----
+
+// For guests: use localStorage instead
+export async function getCart(): Promise<Cart> {
+  throw new Error("getCart(userId) is removed; use fetchCartItems(token) for auth cart fetch.");
+}
+
+// Fetch the authenticated user's cart with JWT
 export async function fetchCartItems(token?: string): Promise<CartItem[]> {
-  const headers: Record<string, string> = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
-
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
   const res = await fetch(`${FASTAPI_URL}/cart`, { method: 'GET', headers });
-
   if (!res.ok) {
     const errorText = await res.text();
     console.error('Failed to fetch cart items:', errorText);
@@ -184,7 +199,6 @@ export async function addToCart(payload: AddToCartPayload, token?: string): Prom
   }
 }
 
-// Remove a cart item (DELETE /cart/{productId} for the authorised user)
 export async function removeFromCart(productId: string, token?: string): Promise<any> {
   try {
     const headers: Record<string, string> = {};
@@ -204,7 +218,6 @@ export async function removeFromCart(productId: string, token?: string): Promise
   }
 }
 
-// Update item quantity (PUT /cart/{productId}, for authenticated user)
 export async function updateCartItemQuantity(productId: string, quantity: number, token?: string): Promise<any> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -226,30 +239,6 @@ export async function updateCartItemQuantity(productId: string, quantity: number
 }
 
 // -------- CHECKOUT AND ORDER FUNCTIONS --------
-
-export interface CheckoutPayload {
-  user_id?: string | null;
-  email?: string;
-  shipping_address: string;
-  cart_items?: CartItem[];
-}
-
-export interface Order {
-  id: string;
-  user_id: string;
-  shipping_address: {
-    full_name: string;
-    address_line1: string;
-    city: string;
-    state_province: string;
-    postal_code: string;
-    country: string;
-  };
-  total_amount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  created_at: string;
-  items: CartItem[];
-}
 
 export async function checkout(payload: CheckoutPayload, token?: string): Promise<{ order_id: string }> {
   try {

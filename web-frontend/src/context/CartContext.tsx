@@ -30,31 +30,29 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [errorCart, setErrorCart] = useState<string | null>(null);
 
   // Load (guest or user) cart at mount/login
-  useEffect(() => {
-    const loadCart = async () => {
-      setLoadingCart(true);
-      setErrorCart(null);
-
-      if (!user || !getToken) {
-        // GUEST mode
-        const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
-        setCartItems(guestCart);
-        setLoadingCart(false);
-        return;
-      }
-      try {
-        const token = await getToken({ template: 'supabase' }) ?? undefined;
+useEffect(() => {
+  const loadCart = async () => {
+    setLoadingCart(true);
+    setErrorCart(null);
+    try {
+      if (user && getToken) {
+        const token = await getToken({ template: 'supabase' }) || undefined;
         const items = await fetchCartItems(token);
         setCartItems(items ?? []);
-      } catch (err) {
-        setCartItems([]);
-        setErrorCart('Failed to load cart');
-      } finally {
-        setLoadingCart(false);
+      } else {
+        const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+        setCartItems(guestCart);
       }
-    };
-    loadCart();
-  }, [user, getToken]);
+    } catch (err: any) {
+      setErrorCart(err.message || 'Failed to load cart');
+      setCartItems([]);
+    } finally {
+      setLoadingCart(false);
+    }
+  };
+  loadCart();
+}, [user, getToken]);
+
 
   // Guest-to-user cart merge after login
   useEffect(() => {

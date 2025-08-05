@@ -4,6 +4,8 @@ from typing import Optional, Any, List
 from generate_id import generate_base64_uuid
 from pydantic import BaseModel
 from typing import Dict
+from uuid import UUID, uuid4
+from sqlalchemy import Column, TIMESTAMP
 
 # Product Class for Supabase
 class Product(SQLModel, table=True):
@@ -71,19 +73,22 @@ class CartItem(SQLModel, table=True):
         populate_by_name = True  # allows accepting both camelCase and snake_case
 
 class Order(SQLModel, table=True):
-    id: Optional[str] = Field(default_factory=generate_base64_uuid, primary_key=True)
-    user_id: str
-    shipping_address: str
-    total_amount: float
-    status: str = "pending"
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: str  # character varying
+    shipping_address: str 
+    total_amount: float  # double precision
+    status: str = Field(default="pending")  # character varying with default
+    created_at: datetime = Field(
+    default_factory=lambda: datetime.now(timezone.utc),
+    sa_column=Column(TIMESTAMP(timezone=True), nullable=False)
+)
 
 class OrderItem(SQLModel, table=True):
-    id: Optional[str] = Field(default_factory=generate_base64_uuid, primary_key=True)
-    order_id: str
-    product_id: str
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    order_id: UUID  # uuid, FK to order.id
+    product_id: str  # character varying
     quantity: int
-    price: float
+    price: float  # double precision
 
 class CheckoutPayload(BaseModel):
     user_id: Optional[str] = None

@@ -21,57 +21,82 @@ export default function ShopPage() {
   const [minPriceInput, setMinPriceInput] = useState(currentMinPrice);
   const [maxPriceInput, setMaxPriceInput] = useState(currentMaxPrice);
 
-  const updateSearchParams = useCallback((newCategory: string, newSort: string, newMinPrice: string, newMaxPrice: string) => {
-    const params = new URLSearchParams(searchParams.toString());
-    
-    if (newCategory) {
-      params.set('category', newCategory);
-    } else {
-      params.delete('category');
-    }
-    
-    params.set('sort', newSort);
+  // --------- SEARCH PARAM HELPERS ----------
+  const updateSearchParams = useCallback(
+    (newCategory: string, newSort: string, newMinPrice: string, newMaxPrice: string) => {
+      const params = new URLSearchParams();
+      if (newCategory) params.set('category', newCategory);
+      if (newSort) params.set('sort', newSort);
+      if (newMinPrice) params.set('minPrice', newMinPrice);
+      if (newMaxPrice) params.set('maxPrice', newMaxPrice);
+      router.push(`/products?${params.toString()}`);
+    },
+    [router]
+  );
 
-    if (newMinPrice) {
-      params.set('minPrice', newMinPrice);
-    } else {
-      params.delete('minPrice');
-    }
-
-    if (newMaxPrice) {
-      params.set('maxPrice', newMaxPrice);
-    } else {
-      params.delete('maxPrice');
-    }
-
-    router.push(`/products?${params.toString()}`);
-  }, [searchParams, router]);
-
+  // --------- DATA FETCHING ----------
   useEffect(() => {
-    async function fetchPageData() {
-      setLoading(true);
-      setError(null);
-      try {
-        const fetchedCategories = await getCategories();
-        setCategories(fetchedCategories);
+    let didCancel = false;
+    setLoading(true);
+    setError(null);
 
-        const fetchedProducts = await getProducts();
-        setProducts(fetchedProducts.filter(product => product !== null && product !== undefined && product.id !== undefined && product.id !== null));
+    async function fetchData() {
+      try {
+        // Load everything in parallel
+        const [categoriesList, productsList] = await Promise.all([
+          getCategories(),
+          getProducts()
+        ]);
+        if (didCancel) return; // if component unmounted
+
+        setCategories(categoriesList);
+
+        let filtered = productsList.filter(p => p && p.id);
+
+        // Category filter
+        if (currentCategorySlug)
+          filtered = filtered.filter(
+            (p) => (p.category || '').toLowerCase() === currentCategorySlug.toLowerCase()
+          );
+
+        // Price filter
+        const minP = parseFloat(currentMinPrice);
+        const maxP = parseFloat(currentMaxPrice);
+        if (!isNaN(minP)) filtered = filtered.filter(p => p.price >= minP);
+        if (!isNaN(maxP)) filtered = filtered.filter(p => p.price <= maxP);
+
+        // Sort
+        if (currentSortOrder === 'price-asc')
+          filtered.sort((a, b) => a.price - b.price);
+        else if (currentSortOrder === 'price-desc')
+          filtered.sort((a, b) => b.price - a.price);
+        else if (currentSortOrder === 'name-asc')
+          filtered.sort((a, b) => a.name.localeCompare(b.name));
+        else if (currentSortOrder === 'name-desc')
+          filtered.sort((a, b) => b.name.localeCompare(a.name));
+        // 'newest' can sort by a createdAt field if your backend provides it
+
+        setProducts(filtered);
       } catch (err: any) {
-        console.error('Failed to fetch data:', err);
         setError(err.message || 'Failed to load products or categories.');
+        setProducts([]);
       } finally {
         setLoading(false);
       }
     }
-    fetchPageData();
+    fetchData();
+    return () => {
+      didCancel = true;
+    };
   }, [currentCategorySlug, currentSortOrder, currentMinPrice, currentMaxPrice]);
 
+  // --------- INPUT SYNC ----------
   useEffect(() => {
     setMinPriceInput(currentMinPrice);
     setMaxPriceInput(currentMaxPrice);
   }, [currentMinPrice, currentMaxPrice]);
 
+  // --------- UI & INTERACTIONS ----------
   const getPageTitle = () => {
     if (currentCategorySlug) {
       const activeCategory = categories.find(cat => cat.slug === currentCategorySlug);
@@ -106,6 +131,7 @@ export default function ShopPage() {
     updateSearchParams(currentCategorySlug, currentSortOrder, '', '');
   };
 
+  // --------- RENDER STATES ----------
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -118,6 +144,14 @@ export default function ShopPage() {
     return (
       <div className="flex justify-center items-center h-screen">
         <p className="text-xl text-red-600">Error: {error}</p>
+      </div>
+    );
+  }
+
+  if (products.length === 0) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <p className="text-xl text-gray-600">No products found for this selection.</p>
       </div>
     );
   }
@@ -137,7 +171,11 @@ export default function ShopPage() {
                 <button
                   onClick={() => handleCategoryChange('')}
                   className={`w-full text-left px-4 py-2 rounded-md transition-colors duration-200
-                    ${currentCategorySlug === '' ? 'bg-blue-600 text-white font-semibold' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                    ${
+                      currentCategorySlug === ''
+                        ? 'bg-blue-600 text-white font-semibold'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                    }`}
                 >
                   All Categories
                 </button>
@@ -147,7 +185,11 @@ export default function ShopPage() {
                   <button
                     onClick={() => handleCategoryChange(category.slug)}
                     className={`w-full text-left px-4 py-2 rounded-md transition-colors duration-200
-                      ${currentCategorySlug === category.slug ? 'bg-blue-600 text-white font-semibold' : 'bg-gray-100 text-gray-800 hover:bg-gray-200'}`}
+                      ${
+                        currentCategorySlug === category.slug
+                          ? 'bg-blue-600 text-white font-semibold'
+                          : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
+                      }`}
                   >
                     {category.title}
                   </button>
@@ -191,7 +233,9 @@ export default function ShopPage() {
         </aside>
         <main className="flex-1">
           <div className="flex justify-end mb-6">
-            <label htmlFor="sort-select" className="sr-only">Sort by</label>
+            <label htmlFor="sort-select" className="sr-only">
+              Sort by
+            </label>
             <select
               id="sort-select"
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
@@ -205,22 +249,11 @@ export default function ShopPage() {
               <option value="name-desc">Name: Z-A</option>
             </select>
           </div>
-          {products.length === 0 ? (
-            <div className="text-center py-10">
-              <p className="text-xl text-gray-600">No products found for this selection.</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {products.map((product, index) => {
-                if (!product.id) {
-                  console.warn(`DEBUG (ShopPage): Product at index ${index} is missing an 'id' for its key. Product name: ${product.name || 'Unknown'}. Full product:`, product);
-                }
-                return (
-                  <ProductCard key={product.id || `product-${index}`} product={product} />
-                );
-              })}
-            </div>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {products.map((product, index) => (
+              <ProductCard key={product.id || `product-${index}`} product={product} />
+            ))}
+          </div>
         </main>
       </div>
     </div>
