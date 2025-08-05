@@ -381,7 +381,7 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
     # Clear user's cart
     stmt = select(CartItem).where(CartItem.user_id == user_id)
     res = await session.exec(stmt)
-    for i in res.scalars().all():
+    for i in res.all():
         await session.delete(i)
     await session.commit()
     return {"message": "Order placed successfully", "order_id": order.id}
