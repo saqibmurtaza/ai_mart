@@ -1,16 +1,12 @@
 'use client';
 
-import React from 'react';
 import { useEffect, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { getProductBySlug, Product } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 
-export default function ProductPage({ params }: { params: any }) {
-  // ✅ Fix: Unwrap route params (Next.js App Router, 14+)
-  
-  const { slug } = React.use(params) as { slug: string };
-
+export default function ProductPage({ params }: { params: { slug: string } }) {
+  const { slug } = params;
 
   const [product, setProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -26,7 +22,10 @@ export default function ProductPage({ params }: { params: any }) {
         setLoadError(null);
         if (slug) {
           const prod = await getProductBySlug(slug);
-          setProduct(prod); // can be null if not found
+          if (!prod) {
+            setLoadError('Product not found.');
+          }
+          setProduct(prod);
         } else {
           setLoadError('No product slug in URL.');
         }
@@ -48,7 +47,6 @@ export default function ProductPage({ params }: { params: any }) {
       return;
     }
     await addItemToCart(product);
-    // CartContext will show toast messages as needed
   };
 
   // ---- UI Rendering ----

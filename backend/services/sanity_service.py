@@ -1,7 +1,7 @@
 import os
 import httpx
 import textwrap
-from typing import Optional
+from typing import Optional, Any, Dict, List
 
 # Environment variables for Sanity project
 SANITY_PROJECT_ID = os.getenv("SANITY_PROJECT_ID")
@@ -11,34 +11,48 @@ SANITY_API_VERSION = os.getenv("SANITY_API_VERSION", "v2023-05-25")
 if not SANITY_PROJECT_ID or not SANITY_DATASET:
     raise ValueError("SANITY_PROJECT_ID and SANITY_DATASET must be set in environment variables.")
 
-# Async HTTP client for Sanity API
-sanity_client = httpx.AsyncClient(
-    base_url=f"https://{SANITY_PROJECT_ID}.api.sanity.io/{SANITY_API_VERSION}/data/query/{SANITY_DATASET}",
-)
+BASE_URL = f"https://{SANITY_PROJECT_ID}.api.sanity.io/{SANITY_API_VERSION}/data/query/{SANITY_DATASET}"
+
+
+async def _fetch_from_sanity(query: str) -> Optional[Any]:
+    """Helper function to send GROQ queries to Sanity safely."""
+    url_params = {"query": query.strip()}
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(BASE_URL, params=url_params, timeout=15.0)
+            if response.status_code != 200:
+                print(f"[ERROR] Sanity API request failed with status {response.status_code}: {response.text}")
+                return None
+            data = response.json()
+            if not isinstance(data, dict):
+                print(f"[ERROR] Invalid response structure: {data}")
+                return None
+            return data.get("result")
+        except httpx.RequestError as e:
+            print(f"[ERROR] Network error while fetching from Sanity: {e}")
+            return None
+        except ValueError as e:
+            print(f"[ERROR] Failed to parse Sanity response as JSON: {e}")
+            return None
+        except Exception as e:
+            print(f"[ERROR] Unexpected error in _fetch_from_sanity: {e}")
+            return None
+
 
 async def fetch_homepage_section(slug: str):
-    query = textwrap.dedent(f"""
+    query = f"""
     *[_type == "homepageSection" && slug.current == "{slug}"][0]{{
         title,
         description,
         "imageUrl": image.asset->url,
         "alt": image.alt
     }}
-    """)
-    url_params = {"query": query}
-    try:
-        response = await sanity_client.get("/", params=url_params)
-        if response.status_code == 200:
-            return response.json().get("result", None)
-        else:
-            print(f"ERROR: Sanity API request failed (homepage): {response.text}")
-            return None
-    except Exception as e:
-        print(f"Error fetching homepage section: {e}")
-        return None
+    """
+    return await _fetch_from_sanity(query)
+
 
 async def fetch_content_blocks():
-    query = textwrap.dedent("""
+    query = """
     *[_type == "contentBlock"] | order(order asc){
         _id,
         title,
@@ -51,21 +65,12 @@ async def fetch_content_blocks():
         callToActionUrl,
         order
     }
-    """)
-    url_params = {"query": query}
-    try:
-        response = await sanity_client.get("/", params=url_params)
-        if response.status_code == 200:
-            return response.json().get("result", [])
-        else:
-            print(f"ERROR: Sanity API request failed (content blocks): {response.text}")
-            return []
-    except Exception as e:
-        print(f"Error fetching content blocks: {e}")
-        return []
+    """
+    return await _fetch_from_sanity(query) or []
+
 
 async def fetch_categories():
-    query = textwrap.dedent("""
+    query = """
     *[_type == "category"] | order(order asc){
         _id,
         title,
@@ -75,21 +80,12 @@ async def fetch_categories():
         "alt": image.alt,
         order
     }
-    """)
-    url_params = {"query": query}
-    try:
-        response = await sanity_client.get("/", params=url_params)
-        if response.status_code == 200:
-            return response.json().get("result", [])
-        else:
-            print(f"ERROR: Sanity API request failed (categories): {response.text}")
-            return []
-    except Exception as e:
-        print(f"Error fetching categories: {e}")
-        return None
+    """
+    return await _fetch_from_sanity(query) or []
+
 
 async def fetch_featured_products():
-    query = textwrap.dedent("""
+    query = """
     *[_type == "product" && isFeatured == true] | order(_createdAt desc){
         _id,
         name,
@@ -103,56 +99,40 @@ async def fetch_featured_products():
         isFeatured,
         sku
     }
-    """)
-    url_params = {"query": query}
-    try:
-        response = await sanity_client.get("/", params=url_params)
-        if response.status_code == 200:
-            return response.json().get("result", [])
-        else:
-            print(f"ERROR: Sanity API request failed (featured products): {response.text}")
-            return []
-    except Exception as e:
-        print(f"Error fetching featured products: {e}")
-        return None
+    """
+    return await _fetch_from_sanity(query) or []
+
 
 async def fetch_all_products(
     category_slug: Optional[str] = None,
     sort_order: str = "newest",
-    min_price: Optional[float] = None, # NEW: min_price parameter added here
-    max_price: Optional[float] = None  # NEW: max_price parameter added here
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None,
+    limit: int = 20,
+    offset: int = 0,
 ):
-    """
-    Fetches all products, optionally filtered by category slug, price range, and sorted.
-    """
     filters = []
     if category_slug:
-        filters.append(f"category->slug.current == \"{category_slug}\"")
-    
-    # NEW: Add price range filters
+        filters.append(f'category->slug.current == "{category_slug}"')
     if min_price is not None:
         filters.append(f"price >= {min_price}")
     if max_price is not None:
         filters.append(f"price <= {max_price}")
 
-    filter_clause = ""
-    if filters:
-        filter_clause = " && " + " && ".join(filters)
+    filter_clause = f" && {' && '.join(filters)}" if filters else ""
 
-    order_clause = ""
-    if sort_order == "newest":
-        order_clause = " | order(_createdAt desc)"
-    elif sort_order == "price-asc":
-        order_clause = " | order(price asc)"
-    elif sort_order == "price-desc":
-        order_clause = " | order(price desc)"
-    elif sort_order == "name-asc":
-        order_clause = " | order(name asc)"
-    elif sort_order == "name-desc":
-        order_clause = " | order(name desc)"
+    sort_map = {
+        "newest": "_createdAt desc",
+        "price-asc": "price asc",
+        "price-desc": "price desc",
+        "name-asc": "name asc",
+        "name-desc": "name desc",
+    }
+    order_clause = sort_map.get(sort_order, "_createdAt desc")
 
-    query = textwrap.dedent(f"""
-    *[_type == "product"{filter_clause}]{order_clause}{{
+    query = f"""
+    *[_type == "product"{filter_clause}]
+    | order({order_clause})[{offset}...{offset + limit}] {{
         _id,
         name,
         "slug": slug.current,
@@ -165,28 +145,12 @@ async def fetch_all_products(
         isFeatured,
         sku
     }}
-    """)
-    url_params = {"query": query}
-    try:
-        print(f"DEBUG (sanity_service.py): fetch_all_products called. Category slug: '{category_slug}', Sort order: '{sort_order}', Min Price: {min_price}, Max Price: {max_price}")
-        print(f"DEBUG (sanity_service.py): GROQ query for all products: {query}")
-        response = await sanity_client.get("/", params=url_params)
-        print(f"DEBUG (sanity_service.py): Sanity API Response Status (all products): {response.status_code}")
-        print(f"DEBUG (sanity_service.py): Sanity API Response Body (all products): {response.text}")
-        if response.status_code == 200:
-            return response.json().get("result", [])
-        else:
-            print(f"ERROR: Sanity API request failed (all products): {response.text}")
-            return []
-    except Exception as e:
-        print(f"Error fetching all products: {e}")
-        return []
+    """
+    return await _fetch_from_sanity(query) or []
+
 
 async def fetch_product_by_slug(product_slug: str):
-    """
-    Fetches a single product by its slug.
-    """
-    query = textwrap.dedent(f"""
+    query = f"""
     *[_type == "product" && slug.current == "{product_slug}"][0]{{
         _id,
         name,
@@ -200,50 +164,12 @@ async def fetch_product_by_slug(product_slug: str):
         isFeatured,
         sku
     }}
-    """)
-    url_params = {"query": query}
-    try:
-        print(f"DEBUG (sanity_service.py): fetch_product_by_slug called for slug: '{product_slug}'")
-        print(f"DEBUG (sanity_service.py): GROQ query: {query}")
-        response = await sanity_client.get("/", params=url_params)
-        print(f"DEBUG (sanity_service.py): Sanity API Response Status (single product): {response.status_code}")
-        print(f"DEBUG (sanity_service.py): Sanity API Response Body (single product): {response.text}")
-        if response.status_code == 200:
-            return response.json().get("result", None)
-        else:
-            print(f"ERROR: Sanity API request failed (single product by slug): {response.text}")
-            return None
-    except Exception as e:
-        print(f"Error fetching product by slug: {e}")
-        return None
+    """
+    return await _fetch_from_sanity(query)
 
-async def fetch_static_promos():
-    query = textwrap.dedent("""
-    *[_type == "promo"]{
-        title,
-        description,
-        discount,
-        validUntil,
-        "imageUrl": image.asset->url
-    }
-    """)
-    url_params = {"query": query}
-    try:
-        response = await sanity_client.get("/", params=url_params)
-        if response.status_code == 200:
-            return response.json().get("result", [])
-        else:
-            print(f"ERROR: Sanity API request failed (promos): {response.text}")
-            return []
-    except Exception as e:
-        print(f"Error fetching promos: {e}")
-        return None
 
 async def fetch_product_by_id(product_id: str):
-    """
-    Fetches a single product by its ID.
-    """
-    query = textwrap.dedent(f"""
+    query = f"""
     *[_type == "product" && _id == "{product_id}"][0]{{
         _id,
         name,
@@ -257,19 +183,18 @@ async def fetch_product_by_id(product_id: str):
         isFeatured,
         sku
     }}
-    """)
-    url_params = {"query": query}
-    try:
-        print(f"DEBUG (sanity_service.py): fetch_product_by_id called for ID: '{product_id}'")
-        print(f"DEBUG (sanity_service.py): GROQ query: {query}")
-        response = await sanity_client.get("/", params=url_params)
-        print(f"DEBUG (sanity_service.py): Sanity API Response Status (single product): {response.status_code}")
-        print(f"DEBUG (sanity_service.py): Sanity API Response Body (single product): {response.text}")
-        if response.status_code == 200:
-            return response.json().get("result", None)
-        else:
-            print(f"ERROR: Sanity API request failed (single product by ID): {response.text}")
-            return None
-    except Exception as e:
-        print(f"Error fetching product by ID: {e}")
-        return None
+    """
+    return await _fetch_from_sanity(query)
+
+
+async def fetch_static_promos():
+    query = """
+    *[_type == "promo"]{
+        title,
+        description,
+        discount,
+        validUntil,
+        "imageUrl": image.asset->url
+    }
+    """
+    return await _fetch_from_sanity(query) or []

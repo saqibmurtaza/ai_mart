@@ -8,18 +8,20 @@ from uuid import UUID, uuid4
 from sqlalchemy import Column, TIMESTAMP
 
 # Product Class for Supabase
-class Product(SQLModel, table=True):
-    id: Optional[str] = Field(default_factory=generate_base64_uuid, primary_key=True)
+
+class Product(BaseModel):
+    id: str
     name: str
     description: Optional[str] = None
     price: float
     stock: int
     category: Optional[str] = None
+    category_slug: Optional[str] = Field(default=None, description="Auto-generated from category")
     imageUrl: Optional[str] = None
-    alt: Optional[str] = None                  # corresponds to alt character varying NULL
-    isFeatured: Optional[bool] = None          # corresponds to isFeatured boolean NULL
+    alt: Optional[str] = None
+    isFeatured: Optional[bool] = False
     sku: Optional[str] = None
-    slug: Optional[str] = None                 # corresponds to sku character varying NULL
+    slug: Optional[str] = None
 
 class ProductDisplayAPIModel(BaseModel):
     id: str # Use 'id' for the primary identifier (can be Supabase ID or Sanity _id)
