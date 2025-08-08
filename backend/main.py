@@ -124,6 +124,9 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
 async def get_orders(request: Request, session: AsyncSession = Depends(get_session)):
     return await get_orders_service(request, session)
 
+
+
+# --- SANITY WEBHOOK ENDPOINT FOR PRODUCT SYNC ---
 # --- SANITY WEBHOOK DEBUG ENDPOINT ---
 @app.post("/webhook/sanity/debug")
 async def sanity_webhook_debug(request: Request):
