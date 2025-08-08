@@ -1,24 +1,21 @@
-import { createClient } from "next-sanity";
+import { createClient } from '@sanity/client';
 
 // --- Environment Variables & Constants ---
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
 
 if (!projectId || !dataset) {
-  throw new Error(
-    "Missing Sanity environment variables. Check NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET."
-  );
+  throw new Error("Missing Sanity environment variables. Check NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET.");
 }
 
 export const sanityClient = createClient({
   projectId,
   dataset,
-  apiVersion: "2023-05-03",
-  useCdn: process.env.NODE_ENV === "production", // Set false for real-time content
+  apiVersion: '2023-05-03',
+  useCdn: process.env.NODE_ENV === 'production',
 });
 
-const FASTAPI_URL =
-  process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
+const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
 
 // ----------- TYPES -----------
 
@@ -47,7 +44,7 @@ export interface ContentBlock {
 export interface HomepageSection {
   id: string;
   title: string;
-  layout_style: "hero" | "featured_products" | "content_grid";
+  layout_style: 'hero' | 'featured_products' | 'content_grid';
   content: ContentBlock[];
   products?: Product[];
   imageUrl?: string;
@@ -61,8 +58,8 @@ export interface ProductImage {
 }
 
 export interface Product {
-  _id: string; // Sanity ID
-  id: string; // Supabase ID
+  _id: string; // Sanity ID (frontend)
+  id: string;  // Supabase ID (backend)
   name: string;
   slug: string;
   description: string;
@@ -111,125 +108,171 @@ export interface CheckoutPayload {
   cart_items?: CartItem[];
 }
 
-export interface OrderItem {
-  product_id: string;
-  name: string;
-  price: number;
-  quantity: number;
-  imageUrl?: string;
-  sku?: string;
-  slug?: string;
-  alt?: string;
-}
-
 export interface Order {
   id: string;
   user_id: string;
   shipping_address: string;
   total_amount: number;
-  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   created_at: string;
-  items: OrderItem[];
-}
-
-// ----------- API HELPER -----------
-async function safeFetch<T>(url: string, options?: RequestInit): Promise<T> {
-  try {
-    const res = await fetch(url, options);
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({
-        detail: `Request failed (${res.status})`,
-      }));
-      throw new Error(errData.detail || `HTTP error: ${res.status}`);
-    }
-    return (await res.json()) as T;
-  } catch (err: any) {
-    console.error("API fetch error:", err.message);
-    throw new Error(err.message || "Unknown error");
-  }
+  items: CartItem[];
 }
 
 // ----------- API FUNCTIONS -----------
 
 // ----- General Navigation -----
-export const getCategories = () =>
-  safeFetch<Category[]>(`${FASTAPI_URL}/categories`);
+export async function getCategories(): Promise<Category[]> {
+  const res = await fetch(`${FASTAPI_URL}/categories`);
+  if (!res.ok) throw new Error("Failed to fetch categories");
+  return res.json();
+}
 
-export const getContentBlocks = () =>
-  safeFetch<ContentBlock[]>(`${FASTAPI_URL}/content-blocks`);
+export async function getContentBlocks(): Promise<ContentBlock[]> {
+  const res = await fetch(`${FASTAPI_URL}/content-blocks`);
+  if (!res.ok) throw new Error("Failed to fetch content blocks");
+  return res.json();
+}
 
-export const getHomepageSection = (slug: string) =>
-  safeFetch<HomepageSection>(`${FASTAPI_URL}/homepage/sections/${slug}`);
+export async function getHomepageSection(slug: string): Promise<HomepageSection> {
+  const res = await fetch(`${FASTAPI_URL}/homepage/sections/${slug}`);
+  if (!res.ok) throw new Error(`Failed to fetch homepage section: ${slug}`);
+  return res.json();
+}
 
 // ----- Product Helpers -----
-export const getProducts = () =>
-  safeFetch<Product[]>(`${FASTAPI_URL}/products`);
+export async function getProducts(): Promise<Product[]> {
+  const res = await fetch(`${FASTAPI_URL}/products`);
+  if (!res.ok) throw new Error("Failed to fetch products");
+  return res.json();
+}
 
-export const getProductBySlug = (slug: string) =>
-  safeFetch<Product>(`${FASTAPI_URL}/products/${slug}`);
+export async function getProductBySlug(slug: string): Promise<Product> {
+  const res = await fetch(`${FASTAPI_URL}/products/${slug}`);
+  if (!res.ok) throw new Error("Failed to fetch product");
+  return res.json();
+}
 
-export const getFeaturedProducts = () =>
-  safeFetch<Product[]>(`${FASTAPI_URL}/products/featured`);
+export async function getFeaturedProducts(): Promise<Product[]> {
+  const res = await fetch(`${FASTAPI_URL}/products/featured`);
+  if (!res.ok) throw new Error("Failed to fetch featured products");
+  return res.json();
+}
 
 // ----- Cart Functions -----
 
-// Explicitly removed to avoid confusion
-export function getCart(): never {
-  throw new Error(
-    "getCart(userId) is removed; use fetchCartItems(token) instead."
-  );
+// For guests: use localStorage instead
+export async function getCart(): Promise<Cart> {
+  throw new Error("getCart(userId) is removed; use fetchCartItems(token) for auth cart fetch.");
 }
 
-export const fetchCartItems = (token?: string) =>
-  safeFetch<{ cart: CartItem[] }>(`${FASTAPI_URL}/cart`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  }).then((data) => data.cart);
+// Fetch the authenticated user's cart with JWT
+export async function fetchCartItems(token?: string): Promise<CartItem[]> {
+  const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+  const res = await fetch(`${FASTAPI_URL}/cart`, { method: 'GET', headers });
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('Failed to fetch cart items:', errorText);
+    throw new Error(`Failed to fetch cart items: ${res.status}`);
+  }
+  const data = await res.json();
+  if (!data.cart) throw new Error('Cart items missing from response');
+  return data.cart as CartItem[];
+}
 
-export const addToCart = (payload: AddToCartPayload, token?: string) =>
-  safeFetch<CartItem>(`${FASTAPI_URL}/cart`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
+export async function addToCart(payload: AddToCartPayload, token?: string): Promise<CartItem> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FASTAPI_URL}/cart`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ detail: 'Failed to add to cart' }));
+      throw new Error(errData.detail || `HTTP error: ${res.status}`);
+    }
+    return res.json();
+  } catch (err: any) {
+    console.error('addToCart error:', err.message, err.stack);
+    throw new Error(`Failed to add to cart: ${err.message}`);
+  }
+}
 
-export const removeFromCart = (productId: string, token?: string) =>
-  safeFetch<any>(`${FASTAPI_URL}/cart/${productId}`, {
-    method: "DELETE",
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+export async function removeFromCart(productId: string, token?: string): Promise<any> {
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FASTAPI_URL}/cart/${productId}`, {
+      method: 'DELETE',
+      headers,
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ detail: 'Failed to remove from cart' }));
+      throw new Error(errData.detail || `HTTP error: ${res.status}`);
+    }
+    return res.json();
+  } catch (err: any) {
+    console.error('removeFromCart error:', err.message, err.stack);
+    throw new Error(`Failed to remove from cart: ${err.message}`);
+  }
+}
 
-export const updateCartItemQuantity = (
-  productId: string,
-  quantity: number,
-  token?: string
-) =>
-  safeFetch<any>(`${FASTAPI_URL}/cart/${productId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify({ quantity }),
-  });
+export async function updateCartItemQuantity(productId: string, quantity: number, token?: string): Promise<any> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FASTAPI_URL}/cart/${productId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ quantity }),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ detail: 'Failed to update item quantity' }));
+      throw new Error(errData.detail || `HTTP error: ${res.status}`);
+    }
+    return res.json();
+  } catch (err: any) {
+    console.error('updateCartItemQuantity error:', err.message, err.stack);
+    throw new Error(`Failed to update item quantity: ${err.message}`);
+  }
+}
 
+// -------- CHECKOUT AND ORDER FUNCTIONS --------
 
-  // -------- CHECKOUT AND ORDER FUNCTIONS --------
+export async function checkout(payload: CheckoutPayload, token?: string): Promise<{ order_id: string }> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FASTAPI_URL}/checkout`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ detail: 'Checkout failed' }));
+      throw new Error(errData.detail || `HTTP error: ${res.status}`);
+    }
+    return res.json();
+  } catch (err: any) {
+    console.error('checkout error:', err.message, err.stack);
+    throw new Error(`Failed to process checkout: ${err.message}`);
+  }
+}
 
-export const checkout = (payload: CheckoutPayload, token?: string) =>
-  safeFetch<{ order_id: string }>(`${FASTAPI_URL}/checkout`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(payload),
-  });
-
-// ✅ FIXED: Only requires token, not userId
-export const getOrders = (token?: string) =>
-  safeFetch<Order[]>(`${FASTAPI_URL}/orders`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
+export async function getOrders(token?: string): Promise<Order[]> {
+  try {
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`${FASTAPI_URL}/orders`, { headers });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({ detail: 'Failed to fetch orders' }));
+      throw new Error(errData.detail || `HTTP error: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.orders || [];
+  } catch (err: any) {
+    console.error('getOrders error:', err.message, err.stack);
+    throw new Error(`Failed to fetch orders: ${err.message}`);
+  }
+}

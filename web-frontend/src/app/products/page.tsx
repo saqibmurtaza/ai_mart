@@ -8,7 +8,6 @@ import ProductCard from '@/components/ProductCard';
 export default function ShopPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-
   const currentCategorySlug = searchParams.get('category') || '';
   const currentSortOrder = searchParams.get('sort') || 'newest';
   const currentMinPrice = searchParams.get('minPrice') || '';
@@ -43,22 +42,22 @@ export default function ShopPage() {
 
     async function fetchData() {
       try {
+        // Load everything in parallel
         const [categoriesList, productsList] = await Promise.all([
           getCategories(),
           getProducts()
         ]);
-        if (didCancel) return;
+        if (didCancel) return; // if component unmounted
 
         setCategories(categoriesList);
 
         let filtered = productsList.filter(p => p && p.id);
 
         // Category filter
-        if (currentCategorySlug) {
+        if (currentCategorySlug)
           filtered = filtered.filter(
             (p) => (p.category || '').toLowerCase() === currentCategorySlug.toLowerCase()
           );
-        }
 
         // Price filter
         const minP = parseFloat(currentMinPrice);
@@ -67,22 +66,15 @@ export default function ShopPage() {
         if (!isNaN(maxP)) filtered = filtered.filter(p => p.price <= maxP);
 
         // Sort
-        switch (currentSortOrder) {
-          case 'price-asc':
-            filtered.sort((a, b) => a.price - b.price);
-            break;
-          case 'price-desc':
-            filtered.sort((a, b) => b.price - a.price);
-            break;
-          case 'name-asc':
-            filtered.sort((a, b) => a.name.localeCompare(b.name));
-            break;
-          case 'name-desc':
-            filtered.sort((a, b) => b.name.localeCompare(a.name));
-            break;
-          default:
-            break; // newest (could be sorted by createdAt if available)
-        }
+        if (currentSortOrder === 'price-asc')
+          filtered.sort((a, b) => a.price - b.price);
+        else if (currentSortOrder === 'price-desc')
+          filtered.sort((a, b) => b.price - a.price);
+        else if (currentSortOrder === 'name-asc')
+          filtered.sort((a, b) => a.name.localeCompare(b.name));
+        else if (currentSortOrder === 'name-desc')
+          filtered.sort((a, b) => b.name.localeCompare(a.name));
+        // 'newest' can sort by a createdAt field if your backend provides it
 
         setProducts(filtered);
       } catch (err: any) {
@@ -93,7 +85,6 @@ export default function ShopPage() {
       }
     }
     fetchData();
-
     return () => {
       didCancel = true;
     };
@@ -105,7 +96,7 @@ export default function ShopPage() {
     setMaxPriceInput(currentMaxPrice);
   }, [currentMinPrice, currentMaxPrice]);
 
-  // --------- UI HELPERS ----------
+  // --------- UI & INTERACTIONS ----------
   const getPageTitle = () => {
     if (currentCategorySlug) {
       const activeCategory = categories.find(cat => cat.slug === currentCategorySlug);
@@ -114,13 +105,20 @@ export default function ShopPage() {
     return 'All Products';
   };
 
-  // --------- HANDLERS ----------
   const handleCategoryChange = (categorySlug: string) => {
     updateSearchParams(categorySlug, currentSortOrder, minPriceInput, maxPriceInput);
   };
 
   const handleSortChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
     updateSearchParams(currentCategorySlug, event.target.value, minPriceInput, maxPriceInput);
+  };
+
+  const handleMinPriceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setMinPriceInput(event.target.value);
+  };
+
+  const handleMaxPriceChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setMaxPriceInput(event.target.value);
   };
 
   const applyPriceFilter = () => {
@@ -166,7 +164,6 @@ export default function ShopPage() {
 
       <div className="flex flex-col lg:flex-row gap-8">
         <aside className="w-full lg:w-1/4 p-6 bg-white rounded-lg shadow-md h-fit sticky top-24">
-          {/* Categories */}
           <h2 className="text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Categories</h2>
           <nav>
             <ul className="space-y-2">
@@ -200,8 +197,6 @@ export default function ShopPage() {
               ))}
             </ul>
           </nav>
-
-          {/* Price Filter */}
           <div className="mt-8 pt-6 border-t border-gray-200">
             <h2 className="text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Filter by Price</h2>
             <div className="flex flex-col space-y-3">
@@ -209,14 +204,14 @@ export default function ShopPage() {
                 type="number"
                 placeholder="Min Price"
                 value={minPriceInput}
-                onChange={(e) => setMinPriceInput(e.target.value)}
+                onChange={handleMinPriceChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <input
                 type="number"
                 placeholder="Max Price"
                 value={maxPriceInput}
-                onChange={(e) => setMaxPriceInput(e.target.value)}
+                onChange={handleMaxPriceChange}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               <div className="flex gap-2 mt-2">
@@ -236,11 +231,11 @@ export default function ShopPage() {
             </div>
           </div>
         </aside>
-
-        {/* Product Grid */}
         <main className="flex-1">
           <div className="flex justify-end mb-6">
-            <label htmlFor="sort-select" className="sr-only">Sort by</label>
+            <label htmlFor="sort-select" className="sr-only">
+              Sort by
+            </label>
             <select
               id="sort-select"
               className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
