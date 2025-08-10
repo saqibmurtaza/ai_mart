@@ -20,6 +20,7 @@ dependencies = [
     "fastapi>=0.115.14",
     "python-jose>=3.5.0",
     "pytz>=2025.2",
+    "sqlalchemy>=2.0.42",
 ]
 [tool.uv]
 dev-dependencies = [

@@ -57,6 +57,11 @@ export interface ProductImage {
   description: string;
 }
 
+export interface CategoryType {
+  slug: string;
+  title: string;
+}
+
 export interface Product {
   _id: string; // Sanity ID (frontend)
   id: string;  // Supabase ID (backend)
@@ -64,7 +69,7 @@ export interface Product {
   slug: string;
   description: string;
   price: number;
-  category: string;
+  category: string | CategoryType; // 👈 Allow both string or object
   images?: ProductImage[];
   stock: number;
   imageUrl?: string;
@@ -140,9 +145,18 @@ export async function getHomepageSection(slug: string): Promise<HomepageSection>
 }
 
 // ----- Product Helpers -----
-export async function getProducts(): Promise<Product[]> {
-  const res = await fetch(`${FASTAPI_URL}/products`);
-  if (!res.ok) throw new Error("Failed to fetch products");
+export async function getProducts(category?: string): Promise<Product[]> {
+  const url = category
+    ? `${FASTAPI_URL}/products?category=${encodeURIComponent(category)}`
+    : `${FASTAPI_URL}/products`;
+
+  const res = await fetch(url);
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error("Failed to fetch products from backend:", errorText);
+    throw new Error("Failed to fetch products");
+  }
+
   return res.json();
 }
 
@@ -265,12 +279,15 @@ export async function getOrders(token?: string): Promise<Order[]> {
     const headers: Record<string, string> = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
     const res = await fetch(`${FASTAPI_URL}/orders`, { headers });
+
     if (!res.ok) {
       const errData = await res.json().catch(() => ({ detail: 'Failed to fetch orders' }));
       throw new Error(errData.detail || `HTTP error: ${res.status}`);
     }
+
+    // ✅ Backend returns an array directly, not { orders: [...] }
     const data = await res.json();
-    return data.orders || [];
+    return Array.isArray(data) ? data : [];
   } catch (err: any) {
     console.error('getOrders error:', err.message, err.stack);
     throw new Error(`Failed to fetch orders: ${err.message}`);

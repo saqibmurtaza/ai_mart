@@ -1,187 +1,69 @@
-// 'use client';
-
-// import { useEffect, useState } from 'react';
-// import Link from 'next/link';
-// import Image from 'next/image';
-// import { getOrders, Order } from '@/lib/api';
-// import { format } from 'date-fns';
-// import { createClient } from '@/utils/supabase/client';
-
-// interface User {
-//   id: string;
-//   email?: string;
-//   user_metadata?: {
-//     name?: string;
-//     picture?: string;
-//     [key: string]: any;
-//   };
-// }
-
-// export default function OrdersPage() {
-//   const [user, setUser] = useState<User | null>(null);
-//   const [isUserLoading, setIsUserLoading] = useState(true);
-//   const [orders, setOrders] = useState<Order[]>([]);
-//   const [loading, setLoading] = useState(true);
-//   const [error, setError] = useState<string | null>(null);
-
-//   useEffect(() => {
-//     const supabase = createClient();
-//     const fetchUser = async () => {
-//       const { data: { user } } = await supabase.auth.getUser();
-//       setUser(user);
-//       setIsUserLoading(false);
-//     };
-//     fetchUser();
-//   }, []);
-
-//   useEffect(() => {
-//     if (isUserLoading) return;
-
-//     if (!user) {
-//       setLoading(false);
-//       setError('Please log in to view your orders.');
-//       return;
-//     }
-
-//     const fetchOrders = async () => {
-//       try {
-//         const userOrders = await getOrders(user.id);
-//         setOrders(userOrders);
-//       } catch (err: any) {
-//         setError(err.message || 'Failed to fetch orders.');
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchOrders();
-//   }, [user, isUserLoading]);
-
-//   if (loading || isUserLoading) {
-//     return (
-//       <div className="flex justify-center items-center h-64">
-//         <p className="text-lg text-gray-500">Loading your orders...</p>
-//       </div>
-//     );
-//   }
-
-//   if (error) {
-//     return (
-//       <div className="text-center py-10">
-//         <p className="text-red-500 font-semibold">{error}</p>
-//         {!user && (
-//           <Link href="/api/auth/login" className="btn btn-primary mt-4">Login</Link>
-//         )}
-//       </div>
-//     );
-//   }
-
-//   return (
-//     <div className="container mx-auto px-4 py-8">
-//       <h1 className="text-3xl font-bold mb-8 text-gray-800">Your Order History</h1>
-//       {orders.length === 0 ? (
-//         <div className="text-center py-16 bg-gray-50 rounded-lg">
-//           <h2 className="text-xl font-semibold text-gray-700">No Orders Found</h2>
-//           <p className="text-gray-500 mt-2">You haven't placed any orders with us yet.</p>
-//           <Link href="/products" className="btn btn-primary mt-6">
-//             Start Shopping
-//           </Link>
-//         </div>
-//       ) : (
-//         <div className="space-y-8">
-//           {orders.map((order) => (
-//             <div key={order.id} className="bg-white p-6 rounded-lg shadow-lg">
-//               <div className="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 mb-4">
-//                 <div>
-//                   <p className="text-sm text-gray-500">Order ID</p>
-//                   <p className="font-mono text-gray-800">{order.id}</p>
-//                 </div>
-//                 <div className="mt-2 md:mt-0 md:text-right">
-//                   <p className="text-sm text-gray-500">Date Placed</p>
-//                   <p className="font-semibold text-gray-800">{format(new Date(order.created_at), 'MMMM d, yyyy')}</p>
-//                 </div>
-//                 <div className="mt-2 md:mt-0 md:text-right">
-//                   <p className="text-sm text-gray-500">Total</p>
-//                   <p className="text-xl font-bold text-gray-900">${order.total_amount.toFixed(2)}</p>
-//                 </div>
-//                 <div className="mt-2 md:mt-0 md:text-right">
-//                   <span className={`badge capitalize ${order.status === 'delivered' ? 'badge-success' : 'badge-warning'}`}>
-//                     {order.status}
-//                   </span>
-//                 </div>
-//               </div>
-//               <div>
-//                 <h3 className="text-lg font-semibold mb-2">Items in this order</h3>
-//                 <ul className="space-y-4">
-//                   {order.items.map((item) => (
-//                     <li key={item.product_id} className="flex items-center space-x-4">
-//                       <Image
-//                         src={item.imageUrl || '/placeholder-image.png'}
-//                         alt={item.name}
-//                         width={64}
-//                         height={64}
-//                         className="rounded-md border"
-//                       />
-//                       <div className="flex-grow">
-//                         <p className="font-semibold text-gray-800">{item.name}</p>
-//                         <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
-//                       </div>
-//                       <p className="font-semibold text-gray-700">${item.price.toFixed(2)}</p>
-//                     </li>
-//                   ))}
-//                 </ul>
-//               </div>
-//             </div>
-//           ))}
-//         </div>
-//       )}
-//     </div>
-//   );
-// }
-
-
+// app/orders/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
-import { getOrders, Order } from '@/lib/api';
-import { format } from 'date-fns';
+
+interface OrderItem {
+  product_id: string;
+  name: string;
+  quantity: number;
+  price: number;
+}
+
+interface Order {
+  id: string;
+  shipping_address: string;
+  total_amount: number;
+  status: string;
+  created_at: string;
+  items?: OrderItem[];
+}
 
 export default function OrdersPage() {
-  // Remove Supabase user state
+  const { getToken, isSignedIn } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // Optionally, add a placeholder for user id, for now just null to block fetching orders
-  const userId = null;
+  const router = useRouter();
 
   useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      setError('Please log in to view your orders.');
-      return;
-    }
-
     const fetchOrders = async () => {
       try {
-        const userOrders = await getOrders(userId);
-        setOrders(userOrders);
+        const token = await getToken();
+        if (!token) throw new Error('Missing auth token');
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/orders`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const data = await res.json();
+          throw new Error(data.detail || 'Failed to fetch orders');
+        }
+
+        const data = await res.json();
+        setOrders(data);
       } catch (err: any) {
-        setError(err.message || 'Failed to fetch orders.');
-      } finally {
-        setLoading(false);
+        setError(err.message);
       }
     };
 
-    fetchOrders();
-  }, [userId]);
+    if (isSignedIn) {
+      fetchOrders();
+    }
+  }, [isSignedIn]);
 
-  if (loading) {
+  if (!isSignedIn) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-lg text-gray-500">Loading your orders...</p>
+      <div className="text-center py-10">
+        <p className="text-gray-600">You must be signed in to view your orders.</p>
+        <Link href="/checkout" className="btn btn-primary mt-4">
+          Sign In
+        </Link>
       </div>
     );
   }
@@ -190,78 +72,54 @@ export default function OrdersPage() {
     return (
       <div className="text-center py-10">
         <p className="text-red-500 font-semibold">{error}</p>
-        <Link href="/api/auth/login" className="btn btn-primary mt-4">
-          Login
+        <Link href="/checkout" className="btn btn-primary mt-4">
+          Sign In
         </Link>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-gray-800">Your Order History</h1>
+    <div className="max-w-3xl mx-auto px-4 py-10">
+      <h1 className="text-2xl font-bold mb-6 text-center">Your Order History</h1>
       {orders.length === 0 ? (
-        <div className="text-center py-16 bg-gray-50 rounded-lg">
-          <h2 className="text-xl font-semibold text-gray-700">No Orders Found</h2>
-          <p className="text-gray-500 mt-2">You haven't placed any orders with us yet.</p>
-          <Link href="/products" className="btn btn-primary mt-6">
-            Start Shopping
-          </Link>
-        </div>
+        <p className="text-center text-gray-600">No orders found.</p>
       ) : (
-        <div className="space-y-8">
-          {orders.map((order) => (
-            <div key={order.id} className="bg-white p-6 rounded-lg shadow-lg">
-              <div className="flex flex-col md:flex-row justify-between md:items-center border-b pb-4 mb-4">
-                <div>
-                  <p className="text-sm text-gray-500">Order ID</p>
-                  <p className="font-mono text-gray-800">{order.id}</p>
-                </div>
-                <div className="mt-2 md:mt-0 md:text-right">
-                  <p className="text-sm text-gray-500">Date Placed</p>
-                  <p className="font-semibold text-gray-800">
-                    {format(new Date(order.created_at), 'MMMM d, yyyy')}
-                  </p>
-                </div>
-                <div className="mt-2 md:mt-0 md:text-right">
-                  <p className="text-sm text-gray-500">Total</p>
-                  <p className="text-xl font-bold text-gray-900">${order.total_amount.toFixed(2)}</p>
-                </div>
-                <div className="mt-2 md:mt-0 md:text-right">
-                  <span
-                    className={`badge capitalize ${
-                      order.status === 'delivered' ? 'badge-success' : 'badge-warning'
-                    }`}
-                  >
-                    {order.status}
-                  </span>
-                </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Items in this order</h3>
-                <ul className="space-y-4">
-                  {order.items.map((item) => (
-                    <li key={item.product_id} className="flex items-center space-x-4">
-                      <Image
-                        src={item.imageUrl || '/placeholder-image.png'}
-                        alt={item.name}
-                        width={64}
-                        height={64}
-                        className="rounded-md border"
-                      />
-                      <div className="flex-grow">
-                        <p className="font-semibold text-gray-800">{item.name}</p>
-                        <p className="text-sm text-gray-500">Qty: {item.quantity}</p>
-                      </div>
-                      <p className="font-semibold text-gray-700">${item.price.toFixed(2)}</p>
+        orders.map((order) => (
+          <div key={order.id} className="mb-6 border rounded-md p-4 shadow-sm bg-white">
+            <p className="text-sm font-semibold">Order #{order.id}</p>
+            <p><strong>Status:</strong> {order.status}</p>
+            <p><strong>Shipping Address:</strong> {order.shipping_address}</p>
+            <p><strong>Total:</strong> ${order.total_amount.toFixed(2)}</p>
+            <p><strong>Date:</strong> {new Date(order.created_at).toLocaleString()}</p>
+
+            {order.items && order.items.length > 0 && (
+              <div className="mt-4">
+                <h3 className="font-medium mb-2">Items:</h3>
+                <ul className="space-y-2">
+                  {order.items.map((item, index) => (
+                    <li key={index} className="border rounded p-2 bg-gray-50">
+                      <p><strong>{item.name}</strong></p>
+                      <p>Quantity: {item.quantity}</p>
+                      <p>Price: ${item.price.toFixed(2)}</p>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
-          ))}
-        </div>
+            )}
+          </div>
+        ))
       )}
+
+      <div className="text-center mt-10">
+        <p className="text-gray-600">Want to place another order?</p>
+        <Link
+          href="/products"
+          className="mt-2 inline-block bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition"
+        >
+          Continue Shopping
+        </Link>
+      </div>
     </div>
   );
 }

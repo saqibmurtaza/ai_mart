@@ -21,18 +21,22 @@ class Product(SQLModel, table=True):
     sku: Optional[str] = None
     slug: Optional[str] = None                 # corresponds to sku character varying NULL
 
-class ProductDisplayAPIModel(BaseModel):
-    id: str # Use 'id' for the primary identifier (can be Supabase ID or Sanity _id)
-    slug: Optional[str] = None # For SEO-friendly URLs (from Sanity, or map Supabase ID)
-    name: str
-    price: float
-    description: Optional[Any] = None # Can be string (Supabase) or Portable Text (Sanity)
-    category: Optional[str] = None
-    imageUrl: Optional[str] = None # Standardized image URL field
-    alt: Optional[str] = None # Alt text for the image
-    stock: Optional[int] = None
-    isFeatured: Optional[bool] = False # Only for Sanity-sourced featured products
-    sku: Optional[str] = None
+# class CategoryData(BaseModel):
+#     slug: Optional[str]
+#     title: Optional[str]
+
+# class ProductDisplayAPIModel(BaseModel):
+#     id: str # Use 'id' for the primary identifier (can be Supabase ID or Sanity _id)
+#     slug: Optional[str] = None # For SEO-friendly URLs (from Sanity, or map Supabase ID)
+#     name: str
+#     price: float
+#     description: Optional[Any] = None # Can be string (Supabase) or Portable Text (Sanity)
+#     category: Optional[CategoryData]
+#     imageUrl: Optional[str] = None # Standardized image URL field
+#     alt: Optional[str] = None # Alt text for the image
+#     stock: Optional[int] = None
+#     isFeatured: Optional[bool] = False # Only for Sanity-sourced featured products
+#     sku: Optional[str] = None
 
 
 class SanityProductAPIModel(BaseModel):
@@ -149,3 +153,63 @@ class SanityWebhookPayload(BaseModel):
     previous: Optional[SanityProductData] = None # Product data before change (for updates/deletes)
     # Add other fields from Sanity webhook payload if needed, e.g., 'deleted', 'created', 'updated'
 
+# imports at top of file
+from typing import Optional, Union, List, Any
+from pydantic import BaseModel, field_validator, model_validator
+
+class CategoryData(BaseModel):
+    slug: Optional[str] = None
+    title: Optional[str] = None
+
+class ProductDisplayAPIModel(BaseModel):
+    id: str
+    slug: Optional[str] = None
+    name: str
+    price: float
+    description: Optional[Any] = None
+    # Accept a dict, a string, or even a list of dicts/strings; we normalize below
+    category: Optional[Union[CategoryData, str, List[Union[CategoryData, str]]]] = None
+    imageUrl: Optional[str] = None
+    alt: Optional[str] = None
+    stock: Optional[int] = None
+    isFeatured: Optional[bool] = False
+    sku: Optional[str] = None
+
+    @model_validator(mode='before')
+    def normalize_category(cls, values):
+        cat = values.get('category')
+        # Already normalized
+        if isinstance(cat, CategoryData) or cat is None:
+            return values
+
+        # If backend supplied an array of categories, prefer first
+        if isinstance(cat, list):
+            first = cat[0] if cat else None
+            if isinstance(first, dict):
+                values['category'] = CategoryData(**{
+                    'title': first.get('title'),
+                    'slug': (first.get('slug') or (first.get('slug', {}) or {})).get('current') if isinstance(first.get('slug'), dict) else first.get('slug')
+                })
+                return values
+            if isinstance(first, str):
+                values['category'] = CategoryData(title=first)
+                return values
+            values['category'] = None
+            return values
+
+        # If backend supplied a dict
+        if isinstance(cat, dict):
+            values['category'] = CategoryData(**{
+                'title': cat.get('title'),
+                'slug': (cat.get('slug') or (cat.get('slug', {}) or {})).get('current') if isinstance(cat.get('slug'), dict) else cat.get('slug')
+            })
+            return values
+
+        # If backend supplied a plain string
+        if isinstance(cat, str):
+            values['category'] = CategoryData(title=cat)
+            return values
+
+        # Unknown shape -> drop it
+        values['category'] = None
+        return values

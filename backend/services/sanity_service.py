@@ -119,17 +119,18 @@ async def fetch_featured_products():
 async def fetch_all_products(
     category_slug: Optional[str] = None,
     sort_order: str = "newest",
-    min_price: Optional[float] = None, # NEW: min_price parameter added here
-    max_price: Optional[float] = None  # NEW: max_price parameter added here
+    min_price: Optional[float] = None,
+    max_price: Optional[float] = None
 ):
     """
     Fetches all products, optionally filtered by category slug, price range, and sorted.
     """
     filters = []
-    if category_slug:
-        filters.append(f"category->slug.current == \"{category_slug}\"")
     
-    # NEW: Add price range filters
+    # ✅ FIXED: Proper category slug filtering for referenced category field
+    if category_slug:
+        filters.append(f'category->slug.current == "{category_slug}"')
+    
     if min_price is not None:
         filters.append(f"price >= {min_price}")
     if max_price is not None:
@@ -166,6 +167,7 @@ async def fetch_all_products(
         sku
     }}
     """)
+
     url_params = {"query": query}
     try:
         print(f"DEBUG (sanity_service.py): fetch_all_products called. Category slug: '{category_slug}', Sort order: '{sort_order}', Min Price: {min_price}, Max Price: {max_price}")
@@ -181,6 +183,7 @@ async def fetch_all_products(
     except Exception as e:
         print(f"Error fetching all products: {e}")
         return []
+
 
 async def fetch_product_by_slug(product_slug: str):
     """

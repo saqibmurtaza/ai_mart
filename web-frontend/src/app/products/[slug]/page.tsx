@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { getProductBySlug, Product } from '@/lib/api';
 import { toast } from 'react-hot-toast';
+import { PortableText } from '@portabletext/react';
 
 export default function ProductPage({ params }: { params: any }) {
   // ✅ Fix: Unwrap route params (Next.js App Router, 14+)
@@ -78,15 +79,16 @@ export default function ProductPage({ params }: { params: any }) {
           <h1 className="text-4xl font-bold mb-4">{product.name}</h1>
           <p className="text-2xl text-green-700 mb-4">${product.price.toFixed(2)}</p>
           <div className="mb-6">
-            {product.description
-              ? <div>{product.description}</div>
-              : <div className="text-gray-500">No description available.</div>
-            }
-          </div>
+  {product.description && Array.isArray(product.description) && product.description.length > 0 ? (
+    <PortableText value={product.description} />
+  ) : (
+    <div className="text-gray-500">No description available.</div>
+  )}
+</div>
           <div className="text-sm text-gray-500 mb-6">
             In Stock: {product.stock ?? 0} units
             {product.sku && <span> &nbsp;| SKU: {product.sku}</span>}
-            {product.category && <span>&nbsp;| Category: {product.category}</span>}
+            {product.category && <span>&nbsp;| Category: {typeof product.category === 'string' ? product.category : product.category?.title}</span>}
           </div>
           {/* --- Add to Cart Button --- */}
           <button

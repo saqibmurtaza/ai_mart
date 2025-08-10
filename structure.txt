@@ -1,4 +1,4 @@
-ai_mart/
+ai_mart_1/
 ├── README.md
 ├── backend/
 │   ├── README.md
@@ -11,6 +11,7 @@ ai_mart/
 │   ├── generate_id.py
 │   ├── hello.py
 │   ├── main.py
+│   ├── main.txt
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── models.py
@@ -18,6 +19,8 @@ ai_mart/
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── sanity_service.py
+│   ├── test_script.py
+│   ├── utils.py
 │   ├── uv.lock
 ├── chatbot/
 │   ├── README.md
@@ -78,13 +81,6 @@ ai_mart/
 │   ├── src/
 │   │   ├── app/
 │   │   │   ├── api/
-│   │   │   │   ├── auth/
-│   │   │   │   │   ├── login/
-│   │   │   │   │   │   ├── route.ts
-│   │   │   │   │   ├── logout/
-│   │   │   │   │   │   ├── route.ts
-│   │   │   │   │   ├── oauth/
-│   │   │   │   │   │   ├── route.ts
 │   │   │   │   ├── revalidate/
 │   │   │   │   │   ├── route.ts
 │   │   │   │   ├── sync-user/
@@ -137,5 +133,4 @@ ai_mart/
 │   │   ├── utils/
 │   │   │   ├── supabase/
 │   │   │   │   ├── client.ts
-│   │   │   │   ├── server.ts
 │   ├── tsconfig.json

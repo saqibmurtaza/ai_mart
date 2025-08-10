@@ -4,7 +4,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request, Header, Body, Quer
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from postgrest.exceptions import APIError
-from sqlmodel import select
+from sqlalchemy import select
 from datetime import datetime, timezone
 from database.db import create_db_tables, get_session, supabase_public, supabase_admin
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -27,8 +27,8 @@ from utils import (
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from fastapi import Response
-import logging
-import pytz
+import logging, pytz
+
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 logger = logging.getLogger("main")
@@ -62,8 +62,9 @@ app = FastAPI(
 
 origins = [
     "http://localhost:3000",
-    "[http://127.0.0.1:3000](http://127.0.0.1:3000)",
+    "http://127.0.0.1:3000",
 ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -71,6 +72,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.options("/{rest_of_path:path}")
 async def preflight_handler():
@@ -82,6 +84,48 @@ def read_root():
     return {"message": "Welcome to the E-commerce API!"}
 
 # --- PRODUCT ENDPOINTS (No changes needed here for the fix) ---
+# @app.get("/products", response_model=List[ProductDisplayAPIModel])
+# async def get_products(
+#     category: Optional[str] = Query(None, description="Filter products by category slug"),
+#     sort: str = Query("newest", description="Sort order: newest, price-asc, price-desc, name-asc, name-desc"),
+#     minPrice: Optional[float] = Query(None, description="Minimum price for filtering"),
+#     maxPrice: Optional[float] = Query(None, description="Maximum price for filtering")
+# ):
+#     logger.info(f"Fetching products: category={category}, sort={sort}, minPrice={minPrice}, maxPrice={maxPrice}")
+#     try:
+#         raw_products = await fetch_all_products(
+#             category_slug=category,
+#             sort_order=sort,
+#             min_price=minPrice,
+#             max_price=maxPrice
+#         )
+#         if not raw_products:
+#             return []
+
+#         transformed_products = []
+#         for p in raw_products:
+#             slug_data = p.get('slug')
+#             slug_value = slug_data.get('current') if isinstance(slug_data, dict) else slug_data
+#             category_title = p.get('category', {}).get('title') if isinstance(p.get('category'), dict) else None
+
+#             transformed_products.append(ProductDisplayAPIModel(
+#                 id=p.get('_id'), # This is Sanity _id, used for display
+#                 slug=slug_value,
+#                 name=p.get('name'),
+#                 price=p.get('price'),
+#                 description=p.get('description'),
+#                 category=category_title,
+#                 imageUrl=p.get('imageUrl'),
+#                 alt=p.get('alt'),
+#                 stock=p.get('stock'),
+#                 isFeatured=p.get('isFeatured', False),
+#                 sku=p.get('sku')
+#             ))
+#         return transformed_products
+#     except Exception as e:
+#         logger.error(f"Error fetching products: {str(e)}", exc_info=True)
+#         raise HTTPException(status_code=500, detail="Failed to fetch products")
+
 @app.get("/products", response_model=List[ProductDisplayAPIModel])
 async def get_products(
     category: Optional[str] = Query(None, description="Filter products by category slug"),
@@ -104,15 +148,20 @@ async def get_products(
         for p in raw_products:
             slug_data = p.get('slug')
             slug_value = slug_data.get('current') if isinstance(slug_data, dict) else slug_data
-            category_title = p.get('category', {}).get('title') if isinstance(p.get('category'), dict) else None
+
+            category_obj = p.get('category') or {}
+            category_data = {
+                "slug": category_obj.get('slug'),
+                "title": category_obj.get('title')
+            } if isinstance(category_obj, dict) else None
 
             transformed_products.append(ProductDisplayAPIModel(
-                id=p.get('_id'), # This is Sanity _id, used for display
+                id=p.get('_id'),
                 slug=slug_value,
                 name=p.get('name'),
                 price=p.get('price'),
                 description=p.get('description'),
-                category=category_title,
+                category=category_data,  # ✅ full object
                 imageUrl=p.get('imageUrl'),
                 alt=p.get('alt'),
                 stock=p.get('stock'),
@@ -386,6 +435,15 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
     await session.commit()
     await session.refresh(order)
     return {"message": "Order placed successfully", "order_id": order.id}
+
+@app.get("/orders")
+async def get_orders(request: Request, session: AsyncSession = Depends(get_session)):
+    
+    user_id = get_supabase_client_and_user(request)
+    stmt = select(Order).where(Order.user_id == user_id)
+    res = await session.exec(stmt)
+    return res.all()
+
 
 
 
