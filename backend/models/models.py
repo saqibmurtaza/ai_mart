@@ -78,21 +78,22 @@ class CartItem(SQLModel, table=True):
 
 class Order(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    user_id: str  # character varying
-    shipping_address: str 
-    total_amount: float  # double precision
-    status: str = Field(default="pending")  # character varying with default
+    user_id: str
+    shipping_address: str
+    total_amount: float
+    status: str = Field(default="pending")
     created_at: datetime = Field(
-    default_factory=lambda: datetime.now(timezone.utc),
-    sa_column=Column(TIMESTAMP(timezone=True), nullable=False)
-)
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column=Column(TIMESTAMP(timezone=True), nullable=False)
+    )
 
 class OrderItem(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    order_id: UUID  # uuid, FK to order.id
-    product_id: str  # character varying
+    order_id: UUID
+    product_id: str
     quantity: int
-    price: float  # double precision
+    price: float
+
 
 class CheckoutPayload(BaseModel):
     user_id: Optional[str] = None

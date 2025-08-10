@@ -355,7 +355,7 @@ async def update_cart_item_quantity(request: Request, product_id: str, payload: 
     statement = select(CartItem).where(
         (CartItem.user_id == user_id) & (CartItem.product_id == product_id)
     )
-    result = await session.execute(statement)
+    result = await session.exec(statement)
     cart_item = result.scalar_one_or_none()
     if not cart_item:
         raise HTTPException(status_code=404, detail="Cart item not found")
@@ -370,7 +370,7 @@ async def remove_from_cart(product_id: str, request: Request, session: AsyncSess
     statement = select(CartItem).where(
         (CartItem.user_id == user_id) & (CartItem.product_id == product_id)
     )
-    result = await session.execute(statement)
+    result = await session.exec(statement)
     cart_item = result.scalar_one_or_none()
     if not cart_item:
         raise HTTPException(status_code=404, detail="Cart item not found")
@@ -413,9 +413,9 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
         created_at=datetime.now(timezone.utc)
     )
     session.add(order)
-    # await session.commit()
-    # await session.refresh(order)
-    # Add OrderItems
+
+    await session.flush()
+
     for item in processed_cart_items:
         order_item = OrderItem(
             order_id=order.id,
@@ -426,24 +426,42 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
         session.add(order_item)
 
     logger.info(f"created_at = {order.created_at}, tzinfo = {order.created_at.tzinfo}, is_aware = {order.created_at.tzinfo is not None}")
+    
     await session.commit()
-    # Clear user's cart
-    stmt = select(CartItem).where(CartItem.user_id == user_id)
-    res = await session.exec(stmt)
-    for i in res.all():
-        await session.delete(i)
+
+    # Clear user's cart — use bulk delete to avoid Row/unmapped errors
+    from sqlalchemy import delete
+
+    await session.exec(
+    delete(CartItem).where(CartItem.user_id == user_id)
+    )
+
     await session.commit()
+
     await session.refresh(order)
     return {"message": "Order placed successfully", "order_id": order.id}
-
-@app.get("/orders")
-async def get_orders(request: Request, session: AsyncSession = Depends(get_session)):
     
-    user_id = get_supabase_client_and_user(request)
-    stmt = select(Order).where(Order.user_id == user_id)
-    res = await session.exec(stmt)
-    return res.all()
+    # # Clear user's cart
+    # stmt = select(CartItem).where(CartItem.user_id == user_id)
+    # res = await session.exec(stmt)
+    # for i in res.all():
+    #     await session.delete(i)
+    # await session.commit()
+    # await session.refresh(order)
+    # return {"message": "Order placed successfully", "order_id": order.id}
 
+
+@app.get("/orders", response_model=List[Order])
+async def get_orders(request: Request, session: AsyncSession = Depends(get_session)):
+    """
+    Fetches all orders for the authenticated user.
+    """
+    user_id = get_supabase_client_and_user(request)
+    stmt = select(Order).where(Order.user_id == user_id).order_by(Order.created_at.desc())
+    
+    # Use .scalars().all() to return a list of Order model instances, not raw rows
+    orders = await session.scalars(stmt)
+    return orders.all()
 
 
 

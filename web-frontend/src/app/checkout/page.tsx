@@ -1,21 +1,18 @@
 'use client';
-import { useAuth } from "@clerk/nextjs";
 
-
-import { useState, FormEvent } from 'react';
+import { useAuth, useUser, SignInButton } from "@clerk/nextjs";
+import { useState, FormEvent, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
-import { checkout, CartItem } from '@/lib/api';
-import { useUser, SignInButton } from "@clerk/nextjs";
+import { checkout as apiCheckout, CartItem } from '@/lib/api';
 
 export default function CheckoutPage() {
-  const { cart, cartTotal, loadingCart, errorCart, removeItemFromCart, addItemToCart, updateItemQuantity } = useCart();
+  const { cart, cartTotal, loadingCart, errorCart, clearCart } = useCart();
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
-
   const router = useRouter();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -29,6 +26,16 @@ export default function CheckoutPage() {
     country: '',
   });
   const [formErrors, setFormErrors] = useState<Partial<typeof formData>>({});
+
+  useEffect(() => {
+    if (user) {
+        setFormData(prev => ({
+            ...prev,
+            fullName: user.fullName || '',
+            email: user.primaryEmailAddress?.emailAddress || '',
+        }));
+    }
+  }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -64,26 +71,18 @@ export default function CheckoutPage() {
       formData.country,
     ].filter(Boolean).join(', ');
 
-    const orderPayload = {
-      user_id: user!.id, // Clerk user id—secure
-      email: user!.primaryEmailAddress?.emailAddress || formData.email,
-      shipping_address: shippingAddressString,
-      cart_items: cart.map((item: CartItem) => ({
-        user_id: item.user_id,
-        product_id: item.product_id,
-        quantity: item.quantity,
-        price: item.price,
-        name: item.name,
-        imageUrl: item.imageUrl,
-        slug: item.slug,
-        sku: item.sku,
-      })),
-    };
-
     try {
-      const token = await getToken({ template: "supabase" }) || undefined;
-      const result = await checkout(orderPayload, token);
+      // Correctly handle null from getToken by converting it to undefined
+      const token = (await getToken({ template: "supabase" })) || undefined;
+      
+      const result = await apiCheckout({
+          shipping_address: shippingAddressString,
+      }, token);
+
       toast.success(`Order placed successfully! Order ID: ${result.order_id}`);
+      
+      clearCart();
+      router.refresh();
       router.push(`/orders`);
 
     } catch (error: any) {
@@ -93,8 +92,6 @@ export default function CheckoutPage() {
       setIsProcessing(false);
     }
   };
-
-  // ---------- PAGE GUARDS & LOADING ----------
 
   if (loadingCart || !isLoaded) {
     return (
@@ -120,7 +117,7 @@ export default function CheckoutPage() {
     return (
       <div className="container mx-auto px-4 py-8 text-center">
         <h1 className="text-2xl font-bold mb-4">Sign in to Checkout</h1>
-        <SignInButton mode="modal">
+        <SignInButton mode="modal" fallbackRedirectUrl="/checkout">
           <button className="btn btn-primary">Sign in</button>
         </SignInButton>
         <div className="mt-4">
@@ -142,8 +139,6 @@ export default function CheckoutPage() {
     );
   }
 
-  // ---------- CHECKOUT PAGE FOR SIGNED IN USERS ONLY ----------
-
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold mb-8 text-center">Complete Your Order</h1>
@@ -152,94 +147,34 @@ export default function CheckoutPage() {
           <h2 className="text-2xl font-semibold mb-6">Shipping Information</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <input
-                name="fullName"
-                type="text"
-                placeholder="Full Name"
-                value={formData.fullName}
-                onChange={handleChange}
-                className={`input input-bordered w-full ${formErrors.fullName ? 'border-red-500' : ''}`}
-                required
-              />
+              <input name="fullName" type="text" placeholder="Full Name" value={formData.fullName} onChange={handleChange} className={`input input-bordered w-full ${formErrors.fullName ? 'border-red-500' : ''}`} required />
               {formErrors.fullName && <p className="text-red-500 text-sm">{formErrors.fullName}</p>}
             </div>
             <div>
-              <input
-                name="email"
-                type="email"
-                placeholder="Email"
-                value={formData.email}
-                onChange={handleChange}
-                className={`input input-bordered w-full ${formErrors.email ? 'border-red-500' : ''}`}
-                required
-              />
+              <input name="email" type="email" placeholder="Email" value={formData.email} onChange={handleChange} className={`input input-bordered w-full ${formErrors.email ? 'border-red-500' : ''}`} required />
               {formErrors.email && <p className="text-red-500 text-sm">{formErrors.email}</p>}
             </div>
             <div>
-              <input
-                name="addressLine1"
-                type="text"
-                placeholder="Address Line 1"
-                value={formData.addressLine1}
-                onChange={handleChange}
-                className={`input input-bordered w-full ${formErrors.addressLine1 ? 'border-red-500' : ''}`}
-                required
-              />
+              <input name="addressLine1" type="text" placeholder="Address Line 1" value={formData.addressLine1} onChange={handleChange} className={`input input-bordered w-full ${formErrors.addressLine1 ? 'border-red-500' : ''}`} required />
               {formErrors.addressLine1 && <p className="text-red-500 text-sm">{formErrors.addressLine1}</p>}
             </div>
             <div>
-              <input
-                name="city"
-                type="text"
-                placeholder="City"
-                value={formData.city}
-                onChange={handleChange}
-                className={`input input-bordered w-full ${formErrors.city ? 'border-red-500' : ''}`}
-                required
-              />
+              <input name="city" type="text" placeholder="City" value={formData.city} onChange={handleChange} className={`input input-bordered w-full ${formErrors.city ? 'border-red-500' : ''}`} required />
               {formErrors.city && <p className="text-red-500 text-sm">{formErrors.city}</p>}
             </div>
             <div>
-              <input
-                name="state"
-                type="text"
-                placeholder="State/Province"
-                value={formData.state}
-                onChange={handleChange}
-                className={`input input-bordered w-full ${formErrors.state ? 'border-red-500' : ''}`}
-                required
-              />
+              <input name="state" type="text" placeholder="State/Province" value={formData.state} onChange={handleChange} className={`input input-bordered w-full ${formErrors.state ? 'border-red-500' : ''}`} required />
               {formErrors.state && <p className="text-red-500 text-sm">{formErrors.state}</p>}
             </div>
             <div>
-              <input
-                name="zipCode"
-                type="text"
-                placeholder="Zip/Postal Code"
-                value={formData.zipCode}
-                onChange={handleChange}
-                className={`input input-bordered w-full ${formErrors.zipCode ? 'border-red-500' : ''}`}
-                required
-              />
+              <input name="zipCode" type="text" placeholder="Zip/Postal Code" value={formData.zipCode} onChange={handleChange} className={`input input-bordered w-full ${formErrors.zipCode ? 'border-red-500' : ''}`} required />
               {formErrors.zipCode && <p className="text-red-500 text-sm">{formErrors.zipCode}</p>}
             </div>
             <div>
-              <input
-                name="country"
-                type="text"
-                placeholder="Country"
-                value={formData.country}
-                onChange={handleChange}
-                className={`input input-bordered w-full ${formErrors.country ? 'border-red-500' : ''}`}
-                required
-              />
+              <input name="country" type="text" placeholder="Country" value={formData.country} onChange={handleChange} className={`input input-bordered w-full ${formErrors.country ? 'border-red-500' : ''}`} required />
               {formErrors.country && <p className="text-red-500 text-sm">{formErrors.country}</p>}
             </div>
-            <button
-              type="submit"
-              className="btn btn-primary w-full mt-6"
-              disabled={isProcessing}
-            >
+            <button type="submit" className="btn btn-primary w-full mt-6" disabled={isProcessing}>
               {isProcessing ? 'Placing Order...' : 'Place Order'}
             </button>
           </form>
