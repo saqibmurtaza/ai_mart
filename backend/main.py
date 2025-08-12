@@ -726,7 +726,7 @@ async def handle_paypal_webhook(
             
             # --- Database Transaction ---
             cart_items_stmt = select(CartItem).where(CartItem.user_id == user_id)
-            cart_items_result = await session.execute(cart_items_stmt)
+            cart_items_result = await session.exec(cart_items_stmt)
             cart_items = cart_items_result.all()
 
             if not cart_items:
