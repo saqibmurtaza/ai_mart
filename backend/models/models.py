@@ -78,6 +78,7 @@ class CartItem(SQLModel, table=True):
 
 class Order(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
+    payment_order_id: Optional[str] = Field(default=None, index=True)  # NEW: link PayPal & DB
     user_id: str
     shipping_address: str
     total_amount: float
@@ -93,6 +94,27 @@ class OrderItem(SQLModel, table=True):
     product_id: str
     quantity: int
     price: float
+
+#Pydantic API Response Models
+class OrderItemResponse(BaseModel):
+    product_id: str
+    quantity: int
+    price: float
+    name: str = "Product Name"  # placeholder, can be fetched from Product table
+    imageUrl: Optional[str] = None
+
+class OrderDetailsResponse(BaseModel):
+    id: UUID
+    payment_order_id: Optional[str] = None
+    user_id: str
+    shipping_address: str
+    total_amount: float
+    status: str
+    created_at: datetime
+    items: List[OrderItemResponse]
+
+    class Config:
+        orm_mode = True
 
 
 class CheckoutPayload(BaseModel):
@@ -214,3 +236,8 @@ class ProductDisplayAPIModel(BaseModel):
         # Unknown shape -> drop it
         values['category'] = None
         return values
+
+class PayPalWebhookRequest(BaseModel):
+    id: str
+    event_type: str
+    resource: dict

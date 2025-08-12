@@ -1,4 +1,5 @@
-import logging, json, asyncio, os
+import logging, json, asyncio, os, requests, paypalrestsdk
+from uuid import UUID
 from typing import List, Optional, Dict, Any
 from fastapi import FastAPI, Depends, HTTPException, Request, Header, Body, Query
 from contextlib import asynccontextmanager
@@ -15,7 +16,8 @@ from services.sanity_service import (
 from models.models import (
     Product, DynamicPromo, CartItem, CheckoutPayload, Order, OrderItem,
     SanityProductAPIModel, HomepageSection, ContentBlock, Category,
-    ProductDisplayAPIModel, SanityProductData
+    ProductDisplayAPIModel, SanityProductData, OrderDetailsResponse,
+    OrderItemResponse, PayPalWebhookRequest
 )
 from utils import (
     SignatureValidationError, verify_sanity_webhook_signature, normalize_product_id,
@@ -83,48 +85,6 @@ async def preflight_handler():
 def read_root():
     return {"message": "Welcome to the E-commerce API!"}
 
-# --- PRODUCT ENDPOINTS (No changes needed here for the fix) ---
-# @app.get("/products", response_model=List[ProductDisplayAPIModel])
-# async def get_products(
-#     category: Optional[str] = Query(None, description="Filter products by category slug"),
-#     sort: str = Query("newest", description="Sort order: newest, price-asc, price-desc, name-asc, name-desc"),
-#     minPrice: Optional[float] = Query(None, description="Minimum price for filtering"),
-#     maxPrice: Optional[float] = Query(None, description="Maximum price for filtering")
-# ):
-#     logger.info(f"Fetching products: category={category}, sort={sort}, minPrice={minPrice}, maxPrice={maxPrice}")
-#     try:
-#         raw_products = await fetch_all_products(
-#             category_slug=category,
-#             sort_order=sort,
-#             min_price=minPrice,
-#             max_price=maxPrice
-#         )
-#         if not raw_products:
-#             return []
-
-#         transformed_products = []
-#         for p in raw_products:
-#             slug_data = p.get('slug')
-#             slug_value = slug_data.get('current') if isinstance(slug_data, dict) else slug_data
-#             category_title = p.get('category', {}).get('title') if isinstance(p.get('category'), dict) else None
-
-#             transformed_products.append(ProductDisplayAPIModel(
-#                 id=p.get('_id'), # This is Sanity _id, used for display
-#                 slug=slug_value,
-#                 name=p.get('name'),
-#                 price=p.get('price'),
-#                 description=p.get('description'),
-#                 category=category_title,
-#                 imageUrl=p.get('imageUrl'),
-#                 alt=p.get('alt'),
-#                 stock=p.get('stock'),
-#                 isFeatured=p.get('isFeatured', False),
-#                 sku=p.get('sku')
-#             ))
-#         return transformed_products
-#     except Exception as e:
-#         logger.error(f"Error fetching products: {str(e)}", exc_info=True)
-#         raise HTTPException(status_code=500, detail="Failed to fetch products")
 
 @app.get("/products", response_model=List[ProductDisplayAPIModel])
 async def get_products(
@@ -440,15 +400,6 @@ async def checkout(payload: CheckoutPayload, request: Request, session: AsyncSes
 
     await session.refresh(order)
     return {"message": "Order placed successfully", "order_id": order.id}
-    
-    # # Clear user's cart
-    # stmt = select(CartItem).where(CartItem.user_id == user_id)
-    # res = await session.exec(stmt)
-    # for i in res.all():
-    #     await session.delete(i)
-    # await session.commit()
-    # await session.refresh(order)
-    # return {"message": "Order placed successfully", "order_id": order.id}
 
 
 @app.get("/orders", response_model=List[Order])
@@ -592,3 +543,247 @@ async def sanity_webhook(
         logger.error(f"Error processing webhook: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error.")
 
+# PAY PAL
+
+# --- PayPal Configuration ---
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
+PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET")
+# Use the v2 sandbox URL
+PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com"
+
+# --- Helper Function to Get PayPal Access Token ---
+def get_paypal_access_token():
+    """
+    Retrieves an OAuth2 access token from PayPal's v2 API.
+    """
+    auth = (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
+    data = {'grant_type': 'client_credentials'}
+    headers = {'Accept': 'application/json', 'Accept-Language': 'en_US'}
+    
+    try:
+        response = requests.post(f"{PAYPAL_API_BASE}/v1/oauth2/token", auth=auth, data=data, headers=headers)
+        response.raise_for_status()
+        token_data = response.json()
+        return token_data['access_token']
+    except requests.exceptions.HTTPError as err:
+        logger.error(f"PayPal Auth Error: {err.response.text}")
+        raise HTTPException(status_code=500, detail="Failed to authenticate with PayPal.")
+
+# --- New Endpoint to Create a PayPal Order ---
+# In main.py, replace your existing /api/orders/create endpoint with this
+@app.post("/api/orders/create")
+async def create_order_api(
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Creates a PayPal order and embeds the internal user_id as a custom_id.
+    """
+    try:
+        user_id = get_supabase_client_and_user(request)
+        cart_items_stmt = select(CartItem).where(CartItem.user_id == user_id)
+        cart_items_result = await session.execute(cart_items_stmt)
+        cart_items = cart_items_result.all()
+
+        if not cart_items:
+            raise HTTPException(status_code=400, detail="Cart is empty")
+
+        total_amount_str = f"{sum(item[0].price * item[0].quantity for item in cart_items):.2f}"
+
+        access_token = get_paypal_access_token()
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {access_token}",
+        }
+        payload = {
+            "intent": "CAPTURE",
+            "purchase_units": [{
+                "amount": {
+                    "currency_code": "USD",
+                    "value": total_amount_str
+                },
+                "custom_id": user_id  # CRITICAL: Link this PayPal order to our user
+            }]
+        }
+
+        response = requests.post(f"{PAYPAL_API_BASE}/v2/checkout/orders", json=payload, headers=headers)
+        response.raise_for_status()
+        order_data = response.json()
+        
+        return {"orderID": order_data["id"]}
+
+    except Exception as e:
+        logger.error(f"Error creating PayPal order: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not create PayPal order.")
+
+
+# --- New Endpoint to Capture Payment and Finalize Order ---
+
+@app.post("/api/orders/{order_id}/capture")
+async def capture_order_api(
+    order_id: str,
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+):
+    try:
+        # Capture payment in PayPal
+        access_token = get_paypal_access_token()
+        headers = {"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"}
+        response = requests.post(f"{PAYPAL_API_BASE}/v2/checkout/orders/{order_id}/capture", headers=headers)
+        response.raise_for_status()
+        capture_data = response.json()
+
+        if capture_data.get("status") != "COMPLETED":
+            raise HTTPException(status_code=400, detail="Payment not completed by PayPal.")
+
+        user_id = get_supabase_client_and_user(request)
+
+        # Fetch cart
+        cart_items_stmt = select(CartItem).where(CartItem.user_id == user_id)
+        cart_items_result = await session.execute(cart_items_stmt)
+        cart_items = cart_items_result.all()
+
+        if not cart_items:
+            # Possible: webhook processed first - check for existing order
+            existing_stmt = select(Order).where(Order.payment_order_id == order_id, Order.user_id == user_id)
+            existing_res = await session.execute(existing_stmt)
+            existing_order = existing_res.scalar_one_or_none()
+            if existing_order:
+                return {"message": "Order already processed by webhook.", "orderId": existing_order.id}
+            raise HTTPException(status_code=400, detail="Cart empty and no order found.")
+
+        purchase_unit = capture_data.get("purchase_units", [{}])[0]
+        shipping_info = purchase_unit.get("shipping", {})
+        shipping_address = f"{shipping_info.get('name', {}).get('full_name', '')}, {shipping_info.get('address', {}).get('address_line_1', '')}, {shipping_info.get('address', {}).get('admin_area_2', '')}".strip(", ")
+        total_amount = float(purchase_unit.get("payments", {}).get("captures", [{}])[0].get("amount", {}).get("value", 0.0))
+
+        # Create order
+        new_order = Order(
+            payment_order_id=order_id,
+            user_id=user_id,
+            shipping_address=shipping_address,
+            total_amount=total_amount,
+            status="completed"
+        )
+        session.add(new_order)
+        await session.flush()
+
+        for item_row in cart_items:
+            item = item_row[0]
+            session.add(OrderItem(order_id=new_order.id, product_id=item.product_id, quantity=item.quantity, price=item.price))
+            await session.delete(item)
+
+        await session.commit()
+        await session.refresh(new_order)
+
+        return {"message": "Order placed successfully!", "orderId": new_order.id}
+
+    except requests.exceptions.HTTPError as http_err:
+        raise HTTPException(status_code=http_err.response.status_code, detail=f"PayPal API error: {http_err.response.text}")
+    except Exception:
+        raise HTTPException(status_code=500, detail="Could not capture payment.")
+
+
+
+PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID")
+
+@app.post("/api/webhooks/paypal")
+async def handle_paypal_webhook(
+    request: Request,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Handles incoming webhooks from PayPal.
+    This is the secure and reliable way to fulfill an order.
+    """
+    body = await request.body()
+    headers = request.headers
+    
+    # This part requires the paypalrestsdk, even if we use requests for other calls
+    try:
+        event = paypalrestsdk.WebhookEvent.verify(
+            body.decode('utf-8'),
+            headers,
+            PAYPAL_WEBHOOK_ID
+        )
+    except Exception as e:
+        logger.error(f"Webhook verification failed: {e}")
+        raise HTTPException(status_code=400, detail="Webhook verification failed.")
+
+    logger.info(f"Received PayPal Webhook: event_type={event.event_type}")
+
+    # Check if the payment is completed
+    if event.event_type == "CHECKOUT.ORDER.COMPLETED":
+        resource = event.resource
+        try:
+            # Extract user_id from the custom_id we set earlier
+            user_id = resource["purchase_units"][0]["custom_id"]
+            
+            # Use the verified data from the webhook to create the order
+            total_amount = float(resource["purchase_units"][0]["amount"]["value"])
+            shipping_info = resource.get("purchase_units", [{}])[0].get("shipping", {})
+            shipping_address = f"{shipping_info.get('name', {}).get('full_name', '')}, {shipping_info.get('address', {}).get('address_line_1', '')}, {shipping_info.get('address', {}).get('admin_area_2', '')}"
+            
+            # --- Database Transaction ---
+            cart_items_stmt = select(CartItem).where(CartItem.user_id == user_id)
+            cart_items_result = await session.execute(cart_items_stmt)
+            cart_items = cart_items_result.all()
+
+            if not cart_items:
+                logger.warning(f"Webhook for user {user_id} received, but cart is already empty. Order may have been processed already.")
+                return {"status": "success", "message": "Order already processed."}
+
+            new_order = Order(user_id=user_id, shipping_address=shipping_address, total_amount=total_amount, status="completed")
+            session.add(new_order)
+            await session.flush()
+
+            for item_row in cart_items:
+                item = item_row[0]
+                session.add(OrderItem(order_id=new_order.id, product_id=item.product_id, quantity=item.quantity, price=item.price))
+                await session.delete(item)
+
+            await session.commit()
+            logger.info(f"Order {new_order.id} successfully created for user {user_id} via webhook.")
+            # TODO: Send order confirmation email here
+            # --- End Transaction ---
+
+        except Exception as e:
+            logger.error(f"Error processing webhook: {e}", exc_info=True)
+            # Return 200 to PayPal to stop retries, but log the error for investigation
+            return {"status": "error", "message": "Failed to process order internally."}
+            
+    return {"status": "success"}
+
+@app.get("/orders/{order_id}", response_model=OrderDetailsResponse)
+async def get_order_details(order_id: UUID, request: Request, session: AsyncSession = Depends(get_session)):
+    user_id = get_supabase_client_and_user(request)
+
+    # Fetch order and verify ownership
+    order_stmt = select(Order).where(Order.id == order_id, Order.user_id == user_id)
+    order_res = await session.exec(order_stmt)
+    order = order_res.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Fetch associated order items
+    items_stmt = select(OrderItem).where(OrderItem.order_id == order_id)
+    items_res = await session.exec(items_stmt)
+    items = items_res.scalars().all()
+
+    return OrderDetailsResponse(
+        id=order.id,
+        payment_order_id=order.payment_order_id,
+        user_id=order.user_id,
+        shipping_address=order.shipping_address,
+        total_amount=order.total_amount,
+        status=order.status,
+        created_at=order.created_at,
+        items=[
+            OrderItemResponse(
+                product_id=item.product_id,
+                quantity=item.quantity,
+                price=item.price
+            )
+            for item in items
+        ]
+    )

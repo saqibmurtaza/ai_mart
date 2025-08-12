@@ -21,6 +21,8 @@ dependencies = [
     "python-jose>=3.5.0",
     "pytz>=2025.2",
     "sqlalchemy>=2.0.42",
+    "stripe>=12.4.0",
+    "paypalrestsdk>=1.13.3",
 ]
 [tool.uv]
 dev-dependencies = [
