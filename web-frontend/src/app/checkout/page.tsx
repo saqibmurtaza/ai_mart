@@ -50,29 +50,65 @@ export default function CheckoutPage() {
     }
   }, [cartTotal, getToken, backendBase]); // Dependencies for useCallback
 
-  const onApprove = useCallback(async (data: { orderID: string }) => {
-    setIsProcessing(true);
-    setErrorMessage(null);
-    try {
-      const token = await getToken({ template: "supabase" });
-      const response = await fetch(`${backendBase}/api/orders/${data.orderID}/capture`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-      });
-      const orderDetails = await response.json();
-      if (!response.ok) throw new Error(orderDetails.detail || "Failed to finalize order.");
+  // const onApprove = useCallback(async (data: { orderID: string }) => {
+  //   setIsProcessing(true);
+  //   setErrorMessage(null);
+  //   try {
+  //     const token = await getToken({ template: "supabase" });
+  //     const response = await fetch(`${backendBase}/api/orders/${data.orderID}/capture`, {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+  //     });
+  //     const orderDetails = await response.json();
+  //     if (!response.ok) throw new Error(orderDetails.detail || "Failed to finalize order.");
       
-      toast.success("Payment successful! Redirecting...");
-      clearCart();
-      router.refresh();
-      router.push(`/order-confirmation/${orderDetails.orderId}`);
-    } catch (error: any) {
-      toast.error(error.message);
-      setErrorMessage(error.message);
-    } finally {
-      setIsProcessing(false);
+  //     toast.success("Payment successful! Redirecting...");
+  //     clearCart();
+  //     router.refresh();
+  //     router.push(`/order-confirmation/${orderDetails.orderId}`);
+  //   } catch (error: any) {
+  //     toast.error(error.message);
+  //     setErrorMessage(error.message);
+  //   } finally {
+  //     setIsProcessing(false);
+  //   }
+  // }, [getToken, backendBase, router, clearCart]);
+
+  const onApprove = async (data: { orderID: string }) => {
+  setIsProcessing(true);
+  setErrorMessage(null);
+  try {
+    const token = await getToken({ template: "supabase" });
+    const response = await fetch(`${backendBase}/api/orders/${data.orderID}/capture`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+    });
+
+    const orderDetails = await response.json();
+    
+    // --- CRITICAL FIX: Log the full response for debugging ---
+    console.log("Full capture response from backend:", orderDetails);
+    
+    // Improved error check: Only throw if status is not OK or if PayPal indicates failure
+    if (!response.ok || orderDetails.status !== "COMPLETED") {
+      throw new Error(orderDetails.detail || orderDetails.error || "Failed to finalize order.");
     }
-  }, [getToken, backendBase, router, clearCart]);
+    
+    toast.success("Payment successful! Redirecting...");
+    clearCart();
+    router.refresh();
+    router.push(`/order-confirmation/${orderDetails.orderId || orderDetails.id}`);
+  } catch (error: any) {
+    console.error("Capture error details:", error);
+    toast.error("Could not capture payment. Please try again.");
+    setErrorMessage(error.message);
+  } finally {
+    setIsProcessing(false);
+  }
+};
+
+
+
 
   const onError = useCallback((err: any) => {
     toast.error("An unexpected payment error occurred.");

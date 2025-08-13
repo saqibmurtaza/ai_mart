@@ -626,7 +626,7 @@ async def capture_order_api(
     session: AsyncSession = Depends(get_session)
 ):
     try:
-        # Capture payment in PayPal
+        # Capture payment in PayPal (your existing logic)
         access_token = get_paypal_access_token()
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"}
         response = requests.post(f"{PAYPAL_API_BASE}/v2/checkout/orders/{order_id}/capture", headers=headers)
@@ -641,23 +641,32 @@ async def capture_order_api(
         # Fetch cart
         cart_items_stmt = select(CartItem).where(CartItem.user_id == user_id)
         cart_items_result = await session.execute(cart_items_stmt)
-        cart_items = cart_items_result.all()
+        cart_items = cart_items_result.scalars().all()  # Use scalars() for better handling
+
+        # --- SURGICAL FIX 1: Always check for existing order first to handle webhook race ---
+        existing_stmt = select(Order).where(Order.payment_order_id == order_id, Order.user_id == user_id)
+        existing_res = await session.execute(existing_stmt)
+        existing_order = existing_res.scalar_one_or_none()
+
+        if existing_order:
+            # Webhook already processed: Return consistent success format (matches frontend expectation)
+            return {
+                "status": "COMPLETED",  # Explicitly add this to satisfy onApprove check
+                "orderId": existing_order.id,
+                "message": "Order already processed by webhook."
+            }
 
         if not cart_items:
-            # Possible: webhook processed first - check for existing order
-            existing_stmt = select(Order).where(Order.payment_order_id == order_id, Order.user_id == user_id)
-            existing_res = await session.execute(existing_stmt)
-            existing_order = existing_res.scalar_one_or_none()
-            if existing_order:
-                return {"message": "Order already processed by webhook.", "orderId": existing_order.id}
+            # No cart and no existing order: This is a true failure, but log it and return 400 consistently
+            print(f"Capture failed for order {order_id}: Cart empty and no existing order.")  # Add minimal logging for your terminal
             raise HTTPException(status_code=400, detail="Cart empty and no order found.")
 
+        # Proceed with order creation (your existing logic, unchanged)
         purchase_unit = capture_data.get("purchase_units", [{}])[0]
         shipping_info = purchase_unit.get("shipping", {})
         shipping_address = f"{shipping_info.get('name', {}).get('full_name', '')}, {shipping_info.get('address', {}).get('address_line_1', '')}, {shipping_info.get('address', {}).get('admin_area_2', '')}".strip(", ")
         total_amount = float(purchase_unit.get("payments", {}).get("captures", [{}])[0].get("amount", {}).get("value", 0.0))
 
-        # Create order
         new_order = Order(
             payment_order_id=order_id,
             user_id=user_id,
@@ -668,21 +677,26 @@ async def capture_order_api(
         session.add(new_order)
         await session.flush()
 
-        for item_row in cart_items:
-            item = item_row[0]
+        for item in cart_items:  # Simplified loop (no need for [0] since scalars())
             session.add(OrderItem(order_id=new_order.id, product_id=item.product_id, quantity=item.quantity, price=item.price))
             await session.delete(item)
 
         await session.commit()
         await session.refresh(new_order)
 
-        return {"message": "Order placed successfully!", "orderId": new_order.id}
+        # --- SURGICAL FIX 2: Always return consistent success format on new order ---
+        return {
+            "status": "COMPLETED",  # Explicitly add this to satisfy onApprove check
+            "orderId": new_order.id,
+            "message": "Order placed successfully!"
+        }
 
     except requests.exceptions.HTTPError as http_err:
+        print(f"PayPal API error in capture: {http_err.response.text}")  # Add for terminal visibility
         raise HTTPException(status_code=http_err.response.status_code, detail=f"PayPal API error: {http_err.response.text}")
-    except Exception:
+    except Exception as e:
+        print(f"Unexpected error in capture endpoint: {str(e)}")  # Add for terminal visibility
         raise HTTPException(status_code=500, detail="Could not capture payment.")
-
 
 
 PAYPAL_WEBHOOK_ID = os.getenv("PAYPAL_WEBHOOK_ID")
@@ -733,7 +747,13 @@ async def handle_paypal_webhook(
                 logger.warning(f"Webhook for user {user_id} received, but cart is already empty. Order may have been processed already.")
                 return {"status": "success", "message": "Order already processed."}
 
-            new_order = Order(user_id=user_id, shipping_address=shipping_address, total_amount=total_amount, status="completed")
+            new_order = Order(
+                payment_order_id=resource["id"],
+                user_id=user_id, 
+                shipping_address=shipping_address, 
+                total_amount=total_amount, 
+                status="completed"
+                )
             session.add(new_order)
             await session.flush()
 
