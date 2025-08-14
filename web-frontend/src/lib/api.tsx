@@ -41,16 +41,16 @@ export interface ContentBlock {
   order?: number;
 }
 
-export interface HomepageSection {
-  id: string;
-  title: string;
-  layout_style: 'hero' | 'featured_products' | 'content_grid';
-  content: ContentBlock[];
-  products?: Product[];
-  imageUrl?: string;
-  alt?: string;
-  description?: any;
-}
+// export interface HomepageSection {
+//   id: string;
+//   title: string;
+//   layout_style: 'hero' | 'featured_products' | 'content_grid';
+//   content: ContentBlock[];
+//   products?: Product[];
+//   imageUrl?: string;
+//   alt?: string;
+//   description?: any;
+// }
 
 export interface ProductImage {
   url: string;
@@ -138,11 +138,11 @@ export async function getContentBlocks(): Promise<ContentBlock[]> {
   return res.json();
 }
 
-export async function getHomepageSection(slug: string): Promise<HomepageSection> {
-  const res = await fetch(`${FASTAPI_URL}/homepage/sections/${slug}`);
-  if (!res.ok) throw new Error(`Failed to fetch homepage section: ${slug}`);
-  return res.json();
-}
+// export async function getHomepageSection(slug: string): Promise<HomepageSection> {
+//   const res = await fetch(`${FASTAPI_URL}/homepage/sections/${slug}`);
+//   if (!res.ok) throw new Error(`Failed to fetch homepage section: ${slug}`);
+//   return res.json();
+// }
 
 // ----- Product Helpers -----
 export async function getProducts(category?: string): Promise<Product[]> {

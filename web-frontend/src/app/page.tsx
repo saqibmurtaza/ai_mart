@@ -4,14 +4,15 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { sanityClient } from '@/lib/sanity';
-import { getHomepageSection, HomepageSection, getContentBlocks, ContentBlock, getCategories, Category, getFeaturedProducts, Product } from '@/lib/api';
+// import { getHomepageSection, HomepageSection, getContentBlocks, ContentBlock, getCategories, Category, getFeaturedProducts, Product } from '@/lib/api';
+import { getContentBlocks, ContentBlock, getCategories, Category, getFeaturedProducts, Product } from '@/lib/api';
 import { PortableText } from '@portabletext/react';
 import ContentBlockComponent from '@/components/ContentBlock';
 import CategoryCard from '@/components/CategoryCard';
 import ProductCard from '@/components/ProductCard';
 
 export default function HomePage() {
-  const [benefitsSection, setBenefitsSection] = useState<HomepageSection | null>(null);
+  // const [benefitsSection, setBenefitsSection] = useState<HomepageSection | null>(null);
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -20,14 +21,21 @@ export default function HomePage() {
   useEffect(() => {
     const fetchPageData = async () => {
       try {
-        const [benefitsData, blocksData, categoriesData, featuredData] = await Promise.all([
-          getHomepageSection('hydrogen-water-benefits').catch(e => { console.error("Failed to fetch benefits section:", e); return null; }),
-          getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
-          getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
-          getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
-        ]);
+        // const [benefitsData, blocksData, categoriesData, featuredData] = await Promise.all([
+        //   getHomepageSection('hydrogen-water-benefits').catch(e => { console.error("Failed to fetch benefits section:", e); return null; }),
+        //   getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
+        //   getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
+        //   getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
+        // ]);
 
-        setBenefitsSection(benefitsData);
+        const [blocksData, categoriesData, featuredData] = await Promise.all([
+  getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
+  getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
+  getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
+]);
+
+
+        // setBenefitsSection(benefitsData);
         setContentBlocks(blocksData);
         setCategories(categoriesData);
         setFeaturedProducts(featuredData);
@@ -114,7 +122,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-16 bg-white">
+      {/* <section className="py-16 bg-white">
         <div className="container mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
           {isLoading ? (
             <p className="text-center w-full">Loading benefits...</p>
@@ -140,13 +148,12 @@ export default function HomePage() {
                 )}
               </div>
             </>
-          ) : (
-            <div className="text-center py-12 text-gray-500 text-lg w-full">
-              <p>The "Hydrogen Water Benefits" section content is not available.</p>
-            </div>
-          )}
+          ) : 
+          null}
         </div>
-      </section>
+      </section> */}
     </>
   );
 }
+
+export const dynamic = 'force-dynamic'; 
