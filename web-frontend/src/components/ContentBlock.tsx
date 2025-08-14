@@ -1,13 +1,75 @@
+// 'use client';
+
+// import React from 'react';
+// import Image from 'next/image';
+// import Link from 'next/link';
+// import { PortableText } from '@portabletext/react';
+// import type { ContentBlock } from '@/lib/api'; // Import the interface
+
+// interface ContentBlockProps {
+//   data: ContentBlock;
+// }
+
+// export default function ContentBlock({ data }: ContentBlockProps) {
+//   const { title, subtitle, description, imageUrl, alt, imageLeft, callToActionText, callToActionUrl } = data;
+
+//   return (
+//     <section className={`max-w-7xl mx-auto py-16 px-4 bg-white rounded-lg shadow-lg my-12 flex flex-col items-center gap-12 ${imageLeft ? 'md:flex-row' : 'md:flex-row-reverse'}`}>
+//       {/* Image Section */}
+//       {imageUrl && (
+//         <div className="w-full md:w-1/2 flex justify-center">
+//           <Image
+//             src={imageUrl}
+//             alt={alt || title || "Content Block Image"}
+//             width={600} // Adjust width/height as needed for overall block look
+//             height={400}
+//             className="rounded-lg shadow-md object-contain"
+//             sizes="(max-width: 768px) 100vw, 50vw" // Responsive image sizes
+//             priority={(data.order ?? 0) < 30} // Prioritize loading for first few blocks
+//           />
+//         </div>
+//       )}
+
+//       {/* Text Content Section */}
+//       <div className="w-full md:w-1/2 text-center md:text-left">
+//         {subtitle && (
+//           <p className="text-primary font-semibold text-lg mb-2">{subtitle}</p>
+//         )}
+//         <h2 className="text-4xl font-bold text-gray-900 mb-6">{title}</h2>
+//         <div className="text-gray-700 text-lg leading-relaxed mb-6">
+//           <PortableText value={description} />
+//         </div>
+//         {callToActionText && callToActionUrl && (
+//           <Link
+//             href={callToActionUrl}
+//             className="inline-block bg-primary text-white text-md font-semibold px-8 py-4 rounded-full shadow-lg hover:bg-opacity-90 transition duration-300 ease-in-out transform hover:scale-105"
+//           >
+//             {callToActionText}
+//           </Link>
+//         )}
+//       </div>
+//     </section>
+//   );
+// }
+
+
+
+
 'use client';
 
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { PortableText } from '@portabletext/react';
-import type { ContentBlock } from '@/lib/api'; // Import the interface
+import type { ContentBlock as BaseContentBlock } from '@/lib/api'; // Import the base interface
+
+// --- MINIMAL CHANGE: Extend the interface locally to add productSlug ---
+interface ExtendedContentBlock extends BaseContentBlock {
+  productSlug?: string;  // Optional field for product link (add to your CMS data if needed)
+}
 
 interface ContentBlockProps {
-  data: ContentBlock;
+  data: ExtendedContentBlock;
 }
 
 export default function ContentBlock({ data }: ContentBlockProps) {
@@ -18,19 +80,24 @@ export default function ContentBlock({ data }: ContentBlockProps) {
       {/* Image Section */}
       {imageUrl && (
         <div className="w-full md:w-1/2 flex justify-center">
-          <Image
-            src={imageUrl}
-            alt={alt || title || "Content Block Image"}
-            width={600} // Adjust width/height as needed for overall block look
-            height={400}
-            className="rounded-lg shadow-md object-contain"
-            sizes="(max-width: 768px) 100vw, 50vw" // Responsive image sizes
-            priority={(data.order ?? 0) < 30} // Prioritize loading for first few blocks
-          />
+          {/* --- UPDATED: Safe Link with productSlug or title fallback --- */}
+          <Link 
+            href={`/products/${data.productSlug || title.toLowerCase().replace(/\s+/g, '-')}`}  // Use productSlug if available; fallback to sanitized title
+          >
+            <Image
+              src={imageUrl}
+              alt={alt || title || "Content Block Image"}
+              width={600} // Adjust width/height as needed for overall block look
+              height={400}
+              className="rounded-lg shadow-md object-contain hover:opacity-80 transition-opacity"  // Subtle hover effect
+              sizes="(max-width: 768px) 100vw, 50vw" // Responsive image sizes
+              priority={(data.order ?? 0) < 30} // Prioritize loading for first few blocks
+            />
+          </Link>
         </div>
       )}
 
-      {/* Text Content Section */}
+      {/* Text Content Section (unchanged) */}
       <div className="w-full md:w-1/2 text-center md:text-left">
         {subtitle && (
           <p className="text-primary font-semibold text-lg mb-2">{subtitle}</p>

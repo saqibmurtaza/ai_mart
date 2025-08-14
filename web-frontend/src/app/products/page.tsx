@@ -155,13 +155,13 @@ export default function ShopPage() {
     );
   }
 
-  if (products.length === 0) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-xl text-gray-600">No products found for this selection.</p>
-      </div>
-    );
-  }
+  // if (products.length === 0) {
+  //   return (
+  //     <div className="flex justify-center items-center h-screen">
+  //       <p className="text-xl text-gray-600">No products found for this selection.</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="container mx-auto p-4 md:p-8 mt-12">
@@ -235,7 +235,7 @@ export default function ShopPage() {
         </aside>
 
         {/* Product Grid */}
-        <main className="flex-1">
+        {/* <main className="flex-1">
           <div className="flex justify-end mb-6">
             <label htmlFor="sort-select" className="sr-only">Sort by</label>
             <select
@@ -257,7 +257,38 @@ export default function ShopPage() {
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
-        </main>
+        </main> */}
+
+        <main className="flex-1">
+  <div className="flex justify-end mb-6">
+    <label htmlFor="sort-select" className="sr-only">Sort by</label>
+    <select
+      id="sort-select"
+      className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+      onChange={handleSortChange}
+      value={currentSortOrder}
+    >
+      <option value="newest">Newest Arrivals</option>
+      <option value="price-asc">Price: Low to High</option>
+      <option value="price-desc">Price: High to Low</option>
+      <option value="name-asc">Name: A-Z</option>
+      <option value="name-desc">Name: Z-A</option>
+    </select>
+  </div>
+
+  {products.length === 0 ? (
+    <p className="text-xl text-gray-600 text-center mt-10">
+      No products found for this selection.
+    </p>
+  ) : (
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {products.map((product: ProductType) => (
+        <ProductCard key={product.id} product={product} />
+      ))}
+    </div>
+  )}
+</main>
+
       </div>
     </div>
   );

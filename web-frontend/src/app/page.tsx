@@ -98,7 +98,8 @@ export default function HomePage() {
       </section>
 
       <section className="py-16 bg-gray-50">
-        <div className="container mx-auto px-4">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl font-bold mb-8">Browse our merchandise collection</h2>
           {isLoading ? (
             <p className="text-center">Loading content...</p>
           ) : contentBlocks.length > 0 ? (

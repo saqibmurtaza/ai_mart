@@ -11,7 +11,6 @@ ai_mart_1/
 │   ├── generate_id.py
 │   ├── hello.py
 │   ├── main.py
-│   ├── main.txt
 │   ├── models/
 │   │   ├── __init__.py
 │   │   ├── models.py
@@ -32,17 +31,6 @@ ai_mart_1/
 ├── package.json
 ├── sanity-studio/
 │   ├── README.md
-│   ├── aimart/
-│   │   ├── README.md
-│   │   ├── eslint.config.mjs
-│   │   ├── package-lock.json
-│   │   ├── package.json
-│   │   ├── sanity.cli.ts
-│   │   ├── sanity.config.ts
-│   │   ├── schemaTypes/
-│   │   │   ├── index.ts
-│   │   ├── static/
-│   │   ├── tsconfig.json
 │   ├── ecommerce_backup.tar.gz
 │   ├── eslint.config.mjs
 │   ├── package-lock.json
@@ -100,8 +88,9 @@ ai_mart_1/
 │   │   │   ├── favicon.ico
 │   │   │   ├── globals.css
 │   │   │   ├── layout.tsx
-│   │   │   ├── order_confirmation/
-│   │   │   │   ├── page.tsx
+│   │   │   ├── order-confirmation/
+│   │   │   │   ├── [orderId]/
+│   │   │   │   │   ├── page.tsx
 │   │   │   ├── orders/
 │   │   │   │   ├── page.tsx
 │   │   │   ├── page.tsx
