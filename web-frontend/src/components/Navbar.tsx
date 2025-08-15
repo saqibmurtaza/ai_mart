@@ -71,21 +71,11 @@ export default function Navbar() {
 
         </div>
         
-        {/* <div className="absolute left-1/2 -translate-x-1/2 z-30">
-          <Link
-            href="/"
-            className="font-bold text-xl text-blue-600 md:text-2xl"
-          >
-            CuratedElements
-          </Link>
-        </div> */}
-
-
 <div className="absolute left-1/2 -translate-x-1/2 z-30">
   <Link href="/" className="block">
     <Image
       src="/images/CuratedShopLogo_1.png" // Replace with your actual logo path
-      alt="Curated Elements Logo"
+      alt="Curated Shop Logo"
       width={120}      // Adjust size as needed
       height={40}      // Adjust size as needed
       className="object-contain"
