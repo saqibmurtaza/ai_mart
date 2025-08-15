@@ -4,7 +4,6 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { sanityClient } from '@/lib/sanity';
-// import { getHomepageSection, HomepageSection, getContentBlocks, ContentBlock, getCategories, Category, getFeaturedProducts, Product } from '@/lib/api';
 import { getContentBlocks, ContentBlock, getCategories, Category, getFeaturedProducts, Product } from '@/lib/api';
 import { PortableText } from '@portabletext/react';
 import ContentBlockComponent from '@/components/ContentBlock';
@@ -12,7 +11,7 @@ import CategoryCard from '@/components/CategoryCard';
 import ProductCard from '@/components/ProductCard';
 
 export default function HomePage() {
-  // const [benefitsSection, setBenefitsSection] = useState<HomepageSection | null>(null);
+  
   const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
@@ -21,18 +20,12 @@ export default function HomePage() {
   useEffect(() => {
     const fetchPageData = async () => {
       try {
-        // const [benefitsData, blocksData, categoriesData, featuredData] = await Promise.all([
-        //   getHomepageSection('hydrogen-water-benefits').catch(e => { console.error("Failed to fetch benefits section:", e); return null; }),
-        //   getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
-        //   getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
-        //   getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
-        // ]);
-
+        
         const [blocksData, categoriesData, featuredData] = await Promise.all([
-  getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
-  getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
-  getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
-]);
+        getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
+        getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
+        getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
+      ]);
 
 
         // setBenefitsSection(benefitsData);
@@ -122,36 +115,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* <section className="py-16 bg-white">
-        <div className="container mx-auto px-4 flex flex-col md:flex-row items-center gap-12">
-          {isLoading ? (
-            <p className="text-center w-full">Loading benefits...</p>
-          ) : benefitsSection ? (
-            <>
-              {benefitsSection.imageUrl && (
-                <div className="w-full md:w-1/2">
-                  <Image
-                    src={benefitsSection.imageUrl}
-                    alt={benefitsSection.alt || benefitsSection.title}
-                    width={600}
-                    height={400}
-                    className="rounded-lg shadow-lg object-cover"
-                  />
-                </div>
-              )}
-              <div className="w-full md:w-1/2 text-center md:text-left">
-                <h2 className="text-4xl font-bold text-gray-900 mb-6">{benefitsSection.title}</h2>
-                {benefitsSection.description && (
-                  <div className="text-gray-700 text-lg leading-relaxed prose">
-                    <PortableText value={benefitsSection.description} />
-                  </div>
-                )}
-              </div>
-            </>
-          ) : 
-          null}
-        </div>
-      </section> */}
+
     </>
   );
 }

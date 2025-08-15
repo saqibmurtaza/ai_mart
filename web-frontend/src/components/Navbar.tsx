@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
+import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 import Image from 'next/image';
 
 const navLinks = [
@@ -46,9 +47,11 @@ export default function Navbar() {
               ></path>
             </svg>
           </button>
-          <button
-            className="text-gray-600 hover:text-primary focus:outline-none cursor-pointer"
+          
+          <Link
+            href="/search"
             aria-label="Search"
+            className="text-gray-600 hover:text-primary focus:outline-none cursor-pointer"
           >
             <svg
               className="w-6 h-6"
@@ -64,7 +67,8 @@ export default function Navbar() {
                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
               ></path>
             </svg>
-          </button>
+          </Link>
+
         </div>
         <div className="absolute left-1/2 -translate-x-1/2 z-30">
           <Link
@@ -78,7 +82,7 @@ export default function Navbar() {
           {/* Remove user avatar/login/logout */}
           <Link
             href="/cart"
-            className="relative text-gray-600 hover:text-primary focus:outline-none cursor-pointer"
+            className="relative text-gray-600 hover:text-primary focus:outline-none cursor-pointer flex items-center"
             aria-label="Cart"
           >
             <svg
@@ -101,6 +105,31 @@ export default function Navbar() {
               </span>
             )}
           </Link>
+
+          <SignedIn>
+            <UserButton afterSignOutUrl="/" />
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="relative text-gray-600 hover:text-primary focus:outline-none cursor-pointer">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-gray-700 hover:text-black"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M5.121 17.804A9.968 9.968 0 0112 15c2.21 0 4.237.714 5.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+              </button>
+        </SignInButton>
+          </SignedOut>
+
         </div>
       </div>
       <div
