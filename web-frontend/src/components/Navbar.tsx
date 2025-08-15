@@ -70,14 +70,30 @@ export default function Navbar() {
           </Link>
 
         </div>
-        <div className="absolute left-1/2 -translate-x-1/2 z-30">
+        
+        {/* <div className="absolute left-1/2 -translate-x-1/2 z-30">
           <Link
             href="/"
             className="font-bold text-xl text-blue-600 md:text-2xl"
           >
-            Hydrogenie
+            CuratedElements
           </Link>
-        </div>
+        </div> */}
+
+
+<div className="absolute left-1/2 -translate-x-1/2 z-30">
+  <Link href="/" className="block">
+    <Image
+      src="/images/CuratedShopLogo_1.png" // Replace with your actual logo path
+      alt="Curated Elements Logo"
+      width={120}      // Adjust size as needed
+      height={40}      // Adjust size as needed
+      className="object-contain"
+    />
+  </Link>
+</div>
+
+
         <div className="flex items-center gap-4 flex-grow justify-end z-20">
           {/* Remove user avatar/login/logout */}
           <Link

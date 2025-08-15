@@ -6,6 +6,8 @@ import { useCart } from '@/context/CartContext';
 import { getProductBySlug, Product } from '@/lib/api';
 import { toast } from 'react-hot-toast';
 import { PortableText } from '@portabletext/react';
+import { urlFor } from '@/lib/sanityimage'
+import Image from 'next/image'
 
 export default function ProductPage({ params }: { params: any }) {
   // ✅ Fix: Unwrap route params (Next.js App Router, 14+)
@@ -65,15 +67,31 @@ export default function ProductPage({ params }: { params: any }) {
     return <div className="py-10 text-center text-gray-600">Product not found.</div>;
   }
 
+  console.log('Product:', product);
+
+
   return (
     <div className="container mx-auto p-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Product Image */}
-        <div>
+        {/* <div>
           <div className="bg-gray-200 w-full h-96 flex items-center justify-center text-xl text-gray-700">
             Image of {product.name}
           </div>
-        </div>
+        </div> */}
+
+{product.imageUrl ? (
+  <img
+    src={product.imageUrl}
+    alt={product.alt || product.name}
+    className="w-full h-auto object-cover rounded-xl"
+  />
+) : (
+  <p>No image available.</p>
+)}
+
+
+
         {/* Product Details */}
         <div>
           <h1 className="text-4xl font-bold mb-4">{product.name}</h1>
@@ -103,3 +121,4 @@ export default function ProductPage({ params }: { params: any }) {
     </div>
   );
 }
+

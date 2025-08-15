@@ -234,31 +234,6 @@ export default function ShopPage() {
           </div>
         </aside>
 
-        {/* Product Grid */}
-        {/* <main className="flex-1">
-          <div className="flex justify-end mb-6">
-            <label htmlFor="sort-select" className="sr-only">Sort by</label>
-            <select
-              id="sort-select"
-              className="px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              onChange={handleSortChange}
-              value={currentSortOrder}
-            >
-              <option value="newest">Newest Arrivals</option>
-              <option value="price-asc">Price: Low to High</option>
-              <option value="price-desc">Price: High to Low</option>
-              <option value="name-asc">Name: A-Z</option>
-              <option value="name-desc">Name: Z-A</option>
-            </select>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {products.map((product: ProductType) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </main> */}
-
         <main className="flex-1">
   <div className="flex justify-end mb-6">
     <label htmlFor="sort-select" className="sr-only">Sort by</label>
