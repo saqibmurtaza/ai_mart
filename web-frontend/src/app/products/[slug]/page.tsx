@@ -73,14 +73,9 @@ export default function ProductPage({ params }: { params: any }) {
   return (
     <div className="container mx-auto p-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Product Image */}
-        {/* <div>
-          <div className="bg-gray-200 w-full h-96 flex items-center justify-center text-xl text-gray-700">
-            Image of {product.name}
-          </div>
-        </div> */}
+        
 
-{product.imageUrl ? (
+{/* {product.imageUrl ? (
   <img
     src={product.imageUrl}
     alt={product.alt || product.name}
@@ -88,9 +83,19 @@ export default function ProductPage({ params }: { params: any }) {
   />
 ) : (
   <p>No image available.</p>
+)} */}
+
+{product.imageUrl ? (
+  <Image
+    src={product.imageUrl}
+    alt={product.alt || product.name}
+    width={500} // Example width, adjust as needed
+    height={300} // Example height, adjust as needed
+    className="object-cover rounded-xl"
+  />
+) : (
+  <p>No image available.</p>
 )}
-
-
 
         {/* Product Details */}
         <div>
