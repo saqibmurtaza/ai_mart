@@ -8,12 +8,12 @@
  */
 
 import { NextStudio } from 'next-sanity/studio'
-// import config from '../../../../../sanity-studio/sanity.config'
+import config from '../../../../../sanity-studio/sanity.config'
 
 export const dynamic = 'force-static'
 
 export { metadata, viewport } from 'next-sanity/studio'
 
-// export default function StudioPage() {
-//   return <NextStudio config={config} />
-// }
+export default function StudioPage() {
+  return <NextStudio config={config} />
+}

@@ -1,0 +1,24 @@
+{
+  "name": "ai_mart_1",
+  "version": "1.0.0",
+  "description": "Root of the AI Mart monorepo, containing web-frontend and potentially other services.",
+  "private": true,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "install:web-frontend": "pnpm install --filter=web-frontend",
+    "build:web-frontend": "pnpm build --filter=web-frontend",
+    "start:web-frontend": "pnpm start --filter=web-frontend",
+    "lint:web-frontend": "pnpm lint --filter=web-frontend",
+    "dev:web-frontend": "pnpm dev --filter=web-frontend"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.14.0",
+  "workspaces": [
+    "web-frontend"
+  ],
+  "devDependencies": {
+    "typescript": "5.8.3" 
+  }
+}

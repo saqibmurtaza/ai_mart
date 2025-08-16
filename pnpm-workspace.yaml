@@ -1,0 +1,5 @@
+packages:
+  - 'web-frontend'
+  # If you have other packages, list them here, e.g.:
+  # - 'backend-api'
+  # - 'packages/*' # Use this if you have multiple sub-packages inside a 'packages' directory

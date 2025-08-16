@@ -5,7 +5,7 @@ const sanityClient = createClient({
   projectId: 'fb3pwyau', 
   dataset: 'production',
   useCdn: true,
-  apiVersion: '2023-01-01',
+  apiVersion: '2025-07-06',
 })
 
 const builder = imageUrlBuilder(sanityClient)

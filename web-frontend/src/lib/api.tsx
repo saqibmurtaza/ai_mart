@@ -11,7 +11,7 @@ if (!projectId || !dataset) {
 export const sanityClient = createClient({
   projectId,
   dataset,
-  apiVersion: '2023-05-03',
+  apiVersion: '2025-07-06',
   useCdn: process.env.NODE_ENV === 'production',
 });
 
