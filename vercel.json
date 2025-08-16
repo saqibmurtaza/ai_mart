@@ -1,6 +1,0 @@
-{
-  "rootDirectory": "web-frontend",
-  "buildCommand": "pnpm build",
-  "installCommand": "pnpm install",
-  "outputDirectory": "web-frontend/.next"
-}
