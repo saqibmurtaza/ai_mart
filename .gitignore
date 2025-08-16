@@ -44,3 +44,6 @@ npm-debug.log*
 yarn-debug.log*
 .DS_Store
 .vercel
+
+sanity-studio/
+
