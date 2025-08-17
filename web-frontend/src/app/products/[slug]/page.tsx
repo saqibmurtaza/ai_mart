@@ -12,7 +12,10 @@ import Image from 'next/image'
 export default function ProductPage({ params }: { params: any }) {
   // ✅ Fix: Unwrap route params (Next.js App Router, 14+)
   
-  const { slug } = React.use(params) as { slug: string };
+  // const { slug } = React.use(params) as { slug: string };
+  // Fixed for Next.js 14:
+  const { slug } = params as { slug: string };
+
 
 
   const [product, setProduct] = useState<Product | null>(null);
