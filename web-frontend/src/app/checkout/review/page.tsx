@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'react-hot-toast';
 import Link from 'next/link';
+import { useUser } from '@clerk/nextjs';
 import { checkout as apiCheckout } from '@/lib/api'; // Rename to avoid conflict with function name
 
 // Define types for stored data
@@ -22,11 +23,12 @@ interface ShippingAddress {
 }
 
 // Placeholder for user ID.
-const MOCK_USER_ID = 'user_123'; // Make sure this matches your CartContext's MOCK_USER_ID
+// const MOCK_USER_ID = 'user_123'; // Make sure this matches your CartContext's MOCK_USER_ID
 
 export default function OrderReviewPage() {
   const router = useRouter();
-  const { cartItems, cartTotal, loadingCart, fetchCart, removeItemFromCart } = useCart();
+  const { user } = useUser(); // Get user info from Clerk
+  const { cart, cartTotal, loadingCart, clearCart } = useCart();
   
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<string | null>(null);
@@ -66,11 +68,11 @@ export default function OrderReviewPage() {
 
   // 2. Redirect if cart is empty after loading
   useEffect(() => {
-    if (!loadingCart && cartItems.length === 0) {
+    if (!loadingCart && cart.length === 0) {
       toast.error("Your cart is empty. Please add items before checking out.");
       router.push('/products');
     }
-  }, [loadingCart, cartItems, router]);
+  }, [loadingCart, cart, router]);
 
   const handlePlaceOrder = async () => {
     if (isPlacingOrder) return; // Prevent double submission
@@ -78,7 +80,7 @@ export default function OrderReviewPage() {
     setOrderError(null);
     setIsPlacingOrder(true);
     
-    if (!shippingAddress || !paymentMethod || cartItems.length === 0) {
+    if (!shippingAddress || !paymentMethod || cart.length === 0) {
       setOrderError("Missing checkout details. Please review your cart, shipping, and payment information.");
       setIsPlacingOrder(false);
       return;
@@ -87,8 +89,8 @@ export default function OrderReviewPage() {
     try {
       // Prepare order data for the backend
       const orderData = {
-        user_id: MOCK_USER_ID,
-        items: cartItems.map(item => ({
+        user_id: user?.id || 'guest',
+        items: cart.map(item => ({
           product_id: item.product_id,
           name: item.name,
           price: item.price,
@@ -117,13 +119,11 @@ export default function OrderReviewPage() {
 
       if (response && response.order_id) {
         toast.success('Order placed successfully!');
-        // Clear cart after successful order
-        // Note: Backend should also clear cart for the user_id if that's its logic.
-        // If not, we can trigger `clearCart` from CartContext here.
-        // For simplicity, let's assume backend clears cart or `fetchCart` will return empty.
+        
+        clearCart();
         sessionStorage.removeItem('shippingAddress'); // Clear session data
         sessionStorage.removeItem('paymentMethod');
-        await fetchCart(); // Re-fetch cart to ensure it's empty
+        // await fetchCart(); // Re-fetch cart to ensure it's empty
         
         // Redirect to order success page
         router.push(`/checkout/success?orderId=${response.order_id}`);
@@ -147,7 +147,7 @@ export default function OrderReviewPage() {
     );
   }
 
-  if (cartItems.length === 0 && !loadingCart) {
+  if (cart.length === 0 && !loadingCart) {
     return null; // Handled by useEffect redirect
   }
 
@@ -168,7 +168,7 @@ export default function OrderReviewPage() {
           <div>
             <h2 className="text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Items in Order</h2>
             <div className="space-y-4">
-              {cartItems.map(item => (
+              {cart.map(item => (
                 <div key={item.product_id} className="flex justify-between items-center text-gray-700 border-b border-gray-100 pb-2 last:border-b-0 last:pb-0">
                   <div className="flex items-center">
                     <div className="relative w-16 h-16 mr-3 flex-shrink-0 rounded-md overflow-hidden">

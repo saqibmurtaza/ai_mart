@@ -20,7 +20,7 @@ interface ShippingAddress {
 
 export default function ShippingPage() {
   const router = useRouter();
-  const { cartItems, cartItemCount, loadingCart } = useCart(); // Access cart context
+  const { cartItemCount, loadingCart } = useCart(); // Access cart context
 
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
     fullName: '',

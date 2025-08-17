@@ -21,7 +21,7 @@ interface ShippingAddress {
 
 export default function PaymentPage() {
   const router = useRouter();
-  const { cartItems, cartItemCount, cartTotal, loadingCart } = useCart();
+  const { cart, cartItemCount, cartTotal, loadingCart } = useCart();
   
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress | null>(null);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string>('credit_card'); // Default to credit card
@@ -156,7 +156,7 @@ export default function PaymentPage() {
         <div>
           <h2 className="text-2xl font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-200">Order Summary</h2>
           <div className="space-y-3 mb-6">
-            {cartItems.map(item => (
+            {cart.map(item => (
               <div key={item.product_id} className="flex justify-between items-center text-gray-700">
                 <span>{item.name} (x{item.quantity})</span>
                 <span>${(item.price * item.quantity).toFixed(2)}</span>
