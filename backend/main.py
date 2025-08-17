@@ -57,7 +57,11 @@ app = FastAPI(
     servers=[
         {
             "url": "http://localhost:8000",
-            "description": "Local development server localhost:8000",
+            "description": "Local development server",
+        },
+        {
+            "url": "https://your-backend-api.vercel.app",  # Replace with real domain if deployed
+            "description": "Production server",
         }
     ]
 )
@@ -65,6 +69,7 @@ app = FastAPI(
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "https://curated-shop-ruby.vercel.app"
 ]
 
 app.add_middleware(

@@ -1,6 +1,6 @@
 'use client';
 
-console.log('FASTAPI URL:', process.env.NEXT_PUBLIC_FASTAPI_URL);
+console.log('FASTAPI URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
@@ -63,7 +63,7 @@ useEffect(() => {
       const token = await getToken({ template: 'supabase' }) ?? undefined;
       for (const item of guestCart) {
         try {
-          await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart`, {
+          await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/cart`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -194,7 +194,7 @@ useEffect(() => {
     }
     try {
       const token = await getToken({ template: 'supabase' }) ?? undefined;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/cart/${productId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -223,7 +223,7 @@ useEffect(() => {
     }
     try {
       const token = await getToken({ template: 'supabase' }) ?? undefined;
-      const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart/${productId}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/cart/${productId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

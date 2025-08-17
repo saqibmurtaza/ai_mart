@@ -15,7 +15,7 @@ export const sanityClient = createClient({
   useCdn: process.env.NODE_ENV === 'production',
 });
 
-const FASTAPI_URL = process.env.NEXT_PUBLIC_FASTAPI_URL || "http://127.0.0.1:8000";
+const FASTAPI_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
 // ----------- TYPES -----------
 

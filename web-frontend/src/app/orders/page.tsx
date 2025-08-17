@@ -34,7 +34,7 @@ export default function OrdersPage() {
         const token = await getToken();
         if (!token) throw new Error('Missing auth token');
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_URL}/orders`, {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL}/orders`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
