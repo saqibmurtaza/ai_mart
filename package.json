@@ -1,24 +1,29 @@
 {
   "name": "ai_mart_1",
   "version": "1.0.0",
-  "description": "Root of the AI Mart monorepo, containing web-frontend and potentially other services.",
+  "description": "Root of the AI Mart monorepo containing web-frontend and sanity-studio workspaces.",
   "private": true,
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "install:web-frontend": "pnpm install --filter=web-frontend",
-    "build:web-frontend": "pnpm build --filter=web-frontend",
-    "start:web-frontend": "pnpm start --filter=web-frontend",
-    "lint:web-frontend": "pnpm lint --filter=web-frontend",
-    "dev:web-frontend": "pnpm dev --filter=web-frontend"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
   "packageManager": "pnpm@10.14.0",
+
   "workspaces": [
-    "web-frontend"
+    "web-frontend",
+    "sanity-studio"
   ],
+
+  "scripts": {
+
+    "dev:web":   "pnpm --filter web-frontend dev",
+    "build:web": "pnpm --filter web-frontend build",
+    "start:web": "pnpm --filter web-frontend start",
+    "lint:web":  "pnpm --filter web-frontend lint",
+
+    "dev:studio":   "pnpm --filter sanity-studio dev",
+    "build:studio": "pnpm --filter sanity-studio build",
+
+    "install:all": "pnpm install"
+  },
+
   "devDependencies": {
-    "typescript": "5.8.3" 
+    "typescript": "5.8.3"
   }
 }

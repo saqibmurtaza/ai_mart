@@ -32,4 +32,7 @@ if not settings.SUPABASE_SECRET_KEY:
     print("ERROR: SUPABASE_SECRET_KEY is not set! Check your .env file.")
     raise ValueError("SUPABASE_SECRET_KEY is not configured.")
 
+print("SANITY_PROJECT_ID:", os.getenv("SANITY_PROJECT_ID"))
+
+
 

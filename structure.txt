@@ -15,9 +15,12 @@ ai_mart_1/
 │   │   ├── __init__.py
 │   │   ├── models.py
 │   ├── pyproject.toml
+│   ├── render.yaml
+│   ├── requirements.txt
 │   ├── services/
 │   │   ├── __init__.py
 │   │   ├── sanity_service.py
+│   ├── start.py
 │   ├── test_script.py
 │   ├── utils.py
 │   ├── uv.lock
@@ -27,20 +30,21 @@ ai_mart_1/
 │   ├── chainlit.md
 │   ├── hello.py
 │   ├── pyproject.toml
-├── package-lock.json
 ├── package.json
+├── pnpm-lock.yaml
+├── pnpm-workspace.yaml
 ├── sanity-studio/
 │   ├── README.md
+│   ├── backups/
+│   │   ├── production.tar.gz
 │   ├── ecommerce_backup.tar.gz
 │   ├── eslint.config.mjs
-│   ├── package-lock.json
 │   ├── package.json
 │   ├── sanity.cli.ts
 │   ├── sanity.config.ts
 │   ├── schemaTypes/
 │   │   ├── category.ts
 │   │   ├── contentBlock.ts
-│   │   ├── homepageSection.ts
 │   │   ├── index.ts
 │   │   ├── product.ts
 │   │   ├── promo.ts
@@ -52,8 +56,7 @@ ai_mart_1/
 │   ├── README.md
 │   ├── eslint.config.mjs
 │   ├── next-env.d.ts
-│   ├── next.config.ts
-│   ├── package-lock.json
+│   ├── next.config.js
 │   ├── package.json
 │   ├── postcss.config.mjs
 │   ├── public/
@@ -61,8 +64,8 @@ ai_mart_1/
 │   │   ├── globe.svg
 │   │   ├── images/
 │   │   │   ├── 600x400.svg
+│   │   │   ├── CuratedShopLogo_1.png
 │   │   │   ├── hero-main.jpg
-│   │   │   ├── placeholder-image.png
 │   │   ├── next.svg
 │   │   ├── vercel.svg
 │   │   ├── window.svg
@@ -70,6 +73,8 @@ ai_mart_1/
 │   │   ├── app/
 │   │   │   ├── api/
 │   │   │   │   ├── revalidate/
+│   │   │   │   │   ├── route.ts
+│   │   │   │   ├── search/
 │   │   │   │   │   ├── route.ts
 │   │   │   │   ├── sync-user/
 │   │   │   │   │   ├── route.ts
@@ -83,8 +88,6 @@ ai_mart_1/
 │   │   │   │   │   ├── page.tsx
 │   │   │   │   ├── shipping/
 │   │   │   │   │   ├── page.tsx
-│   │   │   │   ├── success/
-│   │   │   │   │   ├── page.tsx
 │   │   │   ├── favicon.ico
 │   │   │   ├── globals.css
 │   │   │   ├── layout.tsx
@@ -95,12 +98,12 @@ ai_mart_1/
 │   │   │   │   ├── page.tsx
 │   │   │   ├── page.tsx
 │   │   │   ├── products/
+│   │   │   │   ├── ShopPage.tsx
 │   │   │   │   ├── [slug]/
 │   │   │   │   │   ├── page.tsx
 │   │   │   │   ├── page.tsx
-│   │   │   ├── studio/
-│   │   │   │   ├── [[...tool]]/
-│   │   │   │   │   ├── page.tsx
+│   │   │   ├── search/
+│   │   │   │   ├── page.tsx
 │   │   ├── components/
 │   │   │   ├── CategoryCard.tsx
 │   │   │   ├── ContentBlock.tsx
@@ -116,6 +119,7 @@ ai_mart_1/
 │   │   ├── lib/
 │   │   │   ├── api.tsx
 │   │   │   ├── sanity.ts
+│   │   │   ├── sanityimage.ts
 │   │   │   ├── supabase.ts
 │   │   │   ├── utils.ts
 │   │   ├── middleware.ts
@@ -123,3 +127,4 @@ ai_mart_1/
 │   │   │   ├── supabase/
 │   │   │   │   ├── client.ts
 │   ├── tsconfig.json
+│   ├── vercel.json
