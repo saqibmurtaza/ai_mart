@@ -307,7 +307,7 @@ async def fetch_homepage_section(slug: str):
         "alt": image.alt
     }}
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -335,7 +335,7 @@ async def fetch_content_blocks():
         order
     }
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -360,7 +360,7 @@ async def fetch_categories():
         order
     }
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -389,7 +389,7 @@ async def fetch_featured_products():
         sku
     }
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -449,7 +449,7 @@ async def fetch_all_products(
         sku
     }}
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         print(f"DEBUG: fetch_all_products query:\n{query}")
@@ -479,7 +479,7 @@ async def fetch_product_by_slug(product_slug: str):
         sku
     }}
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -502,7 +502,7 @@ async def fetch_static_promos():
         "imageUrl": image.asset->url
     }
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -531,7 +531,7 @@ async def fetch_product_by_id(product_id: str):
         sku
     }}
     """)
-    query = html.unescape(query)
+    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
