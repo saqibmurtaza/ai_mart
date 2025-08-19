@@ -278,11 +278,9 @@
 #         return None
 
 
-
 import os
 import httpx
 import textwrap
-import html
 from typing import Optional
 
 # Environment variables for Sanity project
@@ -307,7 +305,6 @@ async def fetch_homepage_section(slug: str):
         "alt": image.alt
     }}
     """)
-    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -335,7 +332,6 @@ async def fetch_content_blocks():
         order
     }
     """)
-    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -360,7 +356,6 @@ async def fetch_categories():
         order
     }
     """)
-    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -389,7 +384,6 @@ async def fetch_featured_products():
         sku
     }
     """)
-    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -409,10 +403,9 @@ async def fetch_all_products(
     max_price: Optional[float] = None
 ):
     filters = []
-    
+
     if category_slug:
         filters.append(f'category->slug.current == "{category_slug}"')
-    
     if min_price is not None:
         filters.append(f"price >= {min_price}")
     if max_price is not None:
@@ -441,7 +434,11 @@ async def fetch_all_products(
         "slug": slug.current,
         price,
         description,
-        category->{{_id, title, "slug": slug.current}},
+        category->{{
+            _id,
+            title,
+            "slug": slug.current
+        }},
         "imageUrl": mainImage.asset->url,
         "alt": mainImage.alt,
         stock,
@@ -449,10 +446,8 @@ async def fetch_all_products(
         sku
     }}
     """)
-    
     url_params = {"query": query}
     try:
-        print(f"DEBUG: fetch_all_products query:\n{query}")
         response = await sanity_client.get("/", params=url_params)
         if response.status_code == 200:
             return response.json().get("result", [])
@@ -471,7 +466,11 @@ async def fetch_product_by_slug(product_slug: str):
         "slug": slug.current,
         price,
         description,
-        category->{{_id, title, "slug": slug.current}},
+        category->{{
+            _id,
+            title,
+            "slug": slug.current
+        }},
         "imageUrl": mainImage.asset->url,
         "alt": mainImage.alt,
         stock,
@@ -479,7 +478,6 @@ async def fetch_product_by_slug(product_slug: str):
         sku
     }}
     """)
-    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -502,7 +500,6 @@ async def fetch_static_promos():
         "imageUrl": image.asset->url
     }
     """)
-    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
@@ -523,7 +520,11 @@ async def fetch_product_by_id(product_id: str):
         "slug": slug.current,
         price,
         description,
-        category->{{_id, title, "slug": slug.current}},
+        category->{{
+            _id,
+            title,
+            "slug": slug.current
+        }},
         "imageUrl": mainImage.asset->url,
         "alt": mainImage.alt,
         stock,
@@ -531,7 +532,6 @@ async def fetch_product_by_id(product_id: str):
         sku
     }}
     """)
-    
     url_params = {"query": query}
     try:
         response = await sanity_client.get("/", params=url_params)
