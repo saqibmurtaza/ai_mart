@@ -149,7 +149,8 @@ class Category(BaseModel): # <<<<< MODIFIED: Added _id
     _id: str # Add _id field for consistency with Sanity documents
     title: str
     slug: str
-    description: Any # Portable Text
+    # description: Any # Portable Text
+    description: Optional[Any] = None
     imageUrl: Optional[str] = None
     alt: Optional[str] = None
     order: int

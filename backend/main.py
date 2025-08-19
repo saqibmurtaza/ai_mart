@@ -264,7 +264,12 @@ async def get_categories_endpoint():
         data = await fetch_categories()
         if not data:
             return []
-        return [Category(**item) for item in data]
+        # return [Category(**item) for item in data]
+        return [
+            Category(**{**item, "description": item.get("description") or []})
+            for item in data
+        ]
+
     except Exception as e:
         logger.error(f"Error fetching categories: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch categories")
