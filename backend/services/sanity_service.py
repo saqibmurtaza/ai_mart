@@ -283,6 +283,8 @@ import httpx
 import textwrap
 from typing import Optional
 
+print("[SANITY_SERVICE][BOOT] loaded v1 at import")
+
 # Environment variables for Sanity project
 SANITY_PROJECT_ID = os.getenv("SANITY_PROJECT_ID")
 SANITY_DATASET = os.getenv("SANITY_DATASET")
@@ -358,6 +360,7 @@ async def fetch_categories():
     """)
     url_params = {"query": query}
     try:
+        print("[SANITY_SERVICE][CALL] fetch_categories starting")
         response = await sanity_client.get("/", params=url_params)
         if response.status_code == 200:
             return response.json().get("result", [])
