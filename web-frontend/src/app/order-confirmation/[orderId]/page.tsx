@@ -34,7 +34,6 @@ export default function OrderConfirmationPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // const backendBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
   const backendBase = process.env.NEXT_PUBLIC_API_BASE_URL;
 
   useEffect(() => {

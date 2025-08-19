@@ -19,7 +19,7 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // const backendBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+  
   const backendBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
