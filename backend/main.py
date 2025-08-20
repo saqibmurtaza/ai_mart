@@ -77,10 +77,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
     allow_credentials=True,
-    # allow_methods=["*"], # for local (development)
-    # allow_headers=["*"], # for local (development)
-    allow_methods=[""], # for vercel (production)
-    allow_headers=[""], # for vercel (production)
+    allow_methods="",
+    allow_headers="", 
 )
 
 
