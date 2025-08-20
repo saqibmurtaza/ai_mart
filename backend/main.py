@@ -69,7 +69,8 @@ app = FastAPI(
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
-    "https://curated-shop-ruby.vercel.app"
+    "https://curated-shop-ruby.vercel.app",
+    "https://curated-shop-australia.vercel.app"
 ]
 
 app.add_middleware(
@@ -78,8 +79,8 @@ app.add_middleware(
     allow_credentials=True,
     # allow_methods=["*"], # for local (development)
     # allow_headers=["*"], # for local (development)
-    allow_methods=["*"], # for vercel (production)
-    allow_headers=["*"], # for vercel (production)
+    allow_methods=[""], # for vercel (production)
+    allow_headers=[""], # for vercel (production)
 )
 
 
