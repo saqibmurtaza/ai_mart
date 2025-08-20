@@ -361,7 +361,11 @@ async def fetch_categories():
     url_params = {"query": query}
     try:
         print("[SANITY_SERVICE][CALL] fetch_categories starting")
+        print("[SANITY][categories] BASE=", sanity_client.base_url)
+        print("[SANITY][categories] QUERY:\n", query)
         response = await sanity_client.get("/", params=url_params)
+        print("[SANITY][categories] STATUS=", response.status_code)
+        print("[SANITY][categories] BODY[0:400]=", response.text[:400])
         if response.status_code == 200:
             return response.json().get("result", [])
         else:
