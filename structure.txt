@@ -55,6 +55,7 @@ ai_mart_1/
 ├── web-frontend/
 │   ├── README.md
 │   ├── eslint.config.mjs
+│   ├── middleware.ts
 │   ├── next-env.d.ts
 │   ├── next.config.js
 │   ├── package.json
@@ -122,7 +123,6 @@ ai_mart_1/
 │   │   │   ├── sanityimage.ts
 │   │   │   ├── supabase.ts
 │   │   │   ├── utils.ts
-│   │   ├── middleware.ts
 │   │   ├── utils/
 │   │   │   ├── supabase/
 │   │   │   │   ├── client.ts

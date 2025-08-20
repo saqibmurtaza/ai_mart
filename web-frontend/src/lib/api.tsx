@@ -130,12 +130,37 @@ export async function getContentBlocks(): Promise<ContentBlock[]> {
 
 
 // ----- Product Helpers -----
-export async function getProducts(category?: string): Promise<Product[]> {
-  const url = category
-    ? `${FASTAPI_URL}/products?category=${encodeURIComponent(category)}`
-    : `${FASTAPI_URL}/products`;
+// export async function getProducts(category?: string): Promise<Product[]> {
+//   const url = category
+//     ? `${FASTAPI_URL}/products?category=${encodeURIComponent(category)}`
+//     : `${FASTAPI_URL}/products`;
 
+//   const res = await fetch(url);
+//   if (!res.ok) {
+//     const errorText = await res.text();
+//     console.error("Failed to fetch products from backend:", errorText);
+//     throw new Error("Failed to fetch products");
+//   }
+
+//   return res.json();
+// }
+
+export async function getProducts(
+  category?: string,
+  sort?: string,
+  minPrice?: number,
+  maxPrice?: number
+): Promise<Product[]> {
+  const params = new URLSearchParams();
+  if (category) params.set('category', category);
+  if (sort) params.set('sort', sort);
+  if (minPrice !== undefined && !isNaN(minPrice)) params.set('minPrice', minPrice.toString());
+  if (maxPrice !== undefined && !isNaN(maxPrice)) params.set('maxPrice', maxPrice.toString());
+
+  const url = `${FASTAPI_URL}/products?${params.toString()}`;
+  
   const res = await fetch(url);
+
   if (!res.ok) {
     const errorText = await res.text();
     console.error("Failed to fetch products from backend:", errorText);
@@ -144,6 +169,7 @@ export async function getProducts(category?: string): Promise<Product[]> {
 
   return res.json();
 }
+
 
 export async function getProductBySlug(slug: string): Promise<Product> {
   const res = await fetch(`${FASTAPI_URL}/products/${slug}`);
