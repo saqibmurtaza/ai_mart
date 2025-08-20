@@ -84,9 +84,9 @@ app.add_middleware(
 )
 
 
-@app.options("/{rest_of_path:path}")
-async def preflight_handler():
-    return Response(status_code=200)
+# @app.options("/{rest_of_path:path}")
+# async def preflight_handler():
+#     return Response(status_code=200)
 
 
 @app.get("/")
