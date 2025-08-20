@@ -1,6 +1,7 @@
 'use client';
 
 console.log('FASTAPI URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+console.log('CartContext URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useUser, useAuth } from '@clerk/nextjs';
@@ -143,7 +144,7 @@ useEffect(() => {
         sku: product.sku
       };
       // ------- HARDENED: Never use a dynamic endpoint! -------
-      const endpoint = `${process.env.NEXT_PUBLIC_FASTAPI_URL}/cart`;
+      const endpoint = `${process.env.NEXT_PUBLIC_API_BASE_URL}/cart`;
       if (!endpoint || endpoint.includes('undefined') || endpoint.includes('/products/')) {
         throw new Error('Cart API URL misconfiguration');
       }
