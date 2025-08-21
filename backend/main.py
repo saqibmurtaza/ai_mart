@@ -42,6 +42,26 @@ async def lifespan(app: FastAPI):
     # Startup tasks
     logger.info("Starting up application.")
 
+    # --- Configure PayPal SDK ---
+    paypal_mode = os.getenv("PAYPAL_MODE", "sandbox")
+    paypal_client_id = os.getenv("PAYPAL_CLIENT_ID")
+    paypal_client_secret = os.getenv("PAYPAL_CLIENT_SECRET")
+
+    if not all([paypal_client_id, paypal_client_secret]):
+        logger.error("PayPal credentials (CLIENT_ID, CLIENT_SECRET) are not set in the environment.")
+    else:
+        try:
+            paypalrestsdk.configure({
+                "mode": paypal_mode,
+                "client_id": paypal_client_id,
+                "client_secret": paypal_client_secret
+            })
+            logger.info(f"PayPal SDK configured for '{paypal_mode}' mode.")
+        except Exception as e:
+            logger.error(f"Failed to configure PayPal SDK: {e}")
+    
+    # --- Create database tables ---
+
     logger.info("CREATING DATABASE TABLES...")
     await create_db_tables()
     logger.info("Database tables created successfully.")
@@ -554,13 +574,21 @@ async def sanity_webhook(
         logger.error(f"Error processing webhook: {exc}", exc_info=True)
         raise HTTPException(status_code=500, detail="Internal server error.")
 
-# PAY PAL
+# PAYPAL CONFIGURATION
 
-# --- PayPal Configuration ---
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET")
-# Use the v2 sandbox URL
-PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com"
+
+# Dynamically set the PayPal API base URL based on the mode in the .env file
+PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")  # Default to sandbox if not set
+
+if PAYPAL_MODE == "live":
+    PAYPAL_API_BASE = "https://api-m.paypal.com"
+else:
+    PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com"
+
+logger.info(f"PayPal mode is set to '{PAYPAL_MODE}'. Using API base: {PAYPAL_API_BASE}")
+
 
 # --- Helper Function to Get PayPal Access Token ---
 def get_paypal_access_token():
@@ -580,8 +608,7 @@ def get_paypal_access_token():
         logger.error(f"PayPal Auth Error: {err.response.text}")
         raise HTTPException(status_code=500, detail="Failed to authenticate with PayPal.")
 
-# --- New Endpoint to Create a PayPal Order ---
-# In main.py, replace your existing /api/orders/create endpoint with this
+
 @app.post("/api/orders/create")
 async def create_order_api(
     request: Request,
