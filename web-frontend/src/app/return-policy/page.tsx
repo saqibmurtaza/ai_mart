@@ -33,7 +33,7 @@ export default function ReturnPolicyPage() {
           <h2 className="text-2xl font-semibold mb-3">Refund Process</h2>
           <ol className="list-decimal list-inside space-y-3">
             <li>
-              <strong>Initiate a Return</strong>: To start a return, please contact our customer support team at <strong>support@aimart.com</strong> with your order number and the reason for your return. We will provide you with detailed instructions on how to proceed.
+              <strong>Initiate a Return</strong>: To start a return, please contact our customer support team at <strong>info@curated-shop-australia.com</strong> with your order number and the reason for your return. We will provide you with detailed instructions on how to proceed.
             </li>
             <li>
               <strong>Inspection</strong>: Once we receive your returned item, our team will inspect it to ensure it meets the return eligibility criteria. We will send you an email to notify you that we have received your item and are processing your request.
@@ -54,14 +54,14 @@ export default function ReturnPolicyPage() {
         <section>
           <h2 className="text-2xl font-semibold mb-3">Damaged or Incorrect Items</h2>
           <p>
-            If you receive an item that is defective, damaged, or incorrect, please contact us at <strong>support@aimart.com</strong> within 7 days of receiving your order. We will work with you to resolve the issue promptly and will cover any associated shipping costs for the return.
+            If you receive an item that is defective, damaged, or incorrect, please contact us at <strong>info@curated-shop-australia.com</strong> within 7 days of receiving your order. We will work with you to resolve the issue promptly and will cover any associated shipping costs for the return.
           </p>
         </section>
 
         <section>
           <h2 className="text-2xl font-semibold mb-3">Contact Us</h2>
           <p>
-            If you have any questions about our Return & Refund Policy, please do not hesitate to contact us at <strong>support@aimart.com</strong>.
+            If you have any questions about our Return & Refund Policy, please do not hesitate to contact us at <strong>info@curated-shop-australia.com</strong>.
           </p>
         </section>
       </div>
