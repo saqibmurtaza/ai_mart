@@ -8,7 +8,7 @@ export default function ReturnPolicyPage() {
       
       <div className="space-y-8 text-lg">
         <p>
-          At <strong>My AI Mart</strong>, we are committed to ensuring your satisfaction with every purchase. If you are not entirely satisfied with your order, we're here to help.
+          At <strong>Curated Shop Australia</strong>, we are committed to ensuring your satisfaction with every purchase. If you are not entirely satisfied with your order, we're here to help.
         </p>
 
         <section>
