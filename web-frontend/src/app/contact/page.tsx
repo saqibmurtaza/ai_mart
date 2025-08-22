@@ -57,8 +57,7 @@ export default function ContactPage() {
           </p>
           <address className="not-italic">
             <strong>Curated Shop Australia (Returns)</strong><br />
-            [Your Supplier's Street Address]<br />
-            [Suburb, State, Postcode]<br />
+            21 Leda Drive, Tarneit VIC 3029<br />
             Australia
           </address>
         </div>
