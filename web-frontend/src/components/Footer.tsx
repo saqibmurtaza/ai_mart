@@ -33,11 +33,14 @@ export default function Footer() {
           <Link href="/shipping-policy" className="hover:underline">
             Shipping/Service Policy
           </Link>
+          <Link href="/contact" className="hover:underline">
+            Contact Us
+          </Link>
         </div>
 
         {/* Copyright notice */}
         <p className="mt-6 text-xs text-gray-400">
-          &copy; {new Date().getFullYear()} My AI Mart. All rights reserved.
+          &copy; {new Date().getFullYear()} Curated Shop Australia. All rights reserved.
         </p>
 
       </div>
