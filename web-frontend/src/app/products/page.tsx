@@ -1,11 +1,14 @@
+/* src/app/products/page.tsx */
 import { Suspense } from 'react';
 import ShopPage from './ShopPage';
 
-export const dynamic = 'force-dynamic'; // Optional but safe fallback
+// 1. Tell Next.js to re-generate this page every 60 s (Incremental Static Regeneration)
+export const revalidate = 60;          // ← adjust later if you need faster updates
+
 
 export default function ProductsPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<p>Loading…</p>}>
       <ShopPage />
     </Suspense>
   );

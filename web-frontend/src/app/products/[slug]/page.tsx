@@ -10,10 +10,7 @@ import { urlFor } from '@/lib/sanityimage'
 import Image from 'next/image'
 
 export default function ProductPage({ params }: { params: any }) {
-  // ✅ Fix: Unwrap route params (Next.js App Router, 14+)
-  
-  // const { slug } = React.use(params) as { slug: string };
-  // Fixed for Next.js 14:
+
   const { slug } = params as { slug: string };
 
 
@@ -77,16 +74,6 @@ export default function ProductPage({ params }: { params: any }) {
     <div className="container mx-auto p-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         
-
-{/* {product.imageUrl ? (
-  <img
-    src={product.imageUrl}
-    alt={product.alt || product.name}
-    className="w-full h-auto object-cover rounded-xl"
-  />
-) : (
-  <p>No image available.</p>
-)} */}
 
 {product.imageUrl ? (
   <Image
