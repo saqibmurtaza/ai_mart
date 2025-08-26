@@ -845,3 +845,7 @@ async def get_order_details(order_id: UUID, request: Request, session: AsyncSess
             for item in items
         ]
     )
+
+@app.get("/health")
+async def health_check():
+    return {"status": "healthy"}
