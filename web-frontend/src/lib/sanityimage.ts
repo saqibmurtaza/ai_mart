@@ -1,15 +1,16 @@
-import imageUrlBuilder from '@sanity/image-url'
-import { createClient } from 'next-sanity'
+import imageUrlBuilder from '@sanity/image-url';
+import type { ImageUrlBuilder } from '@sanity/image-url/lib/types/builder';   // no <T>
+import type { SanityImageSource } from '@sanity/image-url/lib/types/types';
 
-const sanityClient = createClient({
-  projectId: 'fb3pwyau', 
-  dataset: 'production',
-  useCdn: true,
-  apiVersion: '2025-07-06',
-})
+import { getSanityClient } from './sanityClient';
 
-const builder = imageUrlBuilder(sanityClient)
+/* singleton builder – initialised once per server instance */
+let builder: ImageUrlBuilder | null = null;
+function getBuilder(): ImageUrlBuilder {
+  if (!builder) builder = imageUrlBuilder(getSanityClient());
+  return builder;
+}
 
-export function urlFor(source: any) {
-  return builder.image(source)
+export function urlFor(source: SanityImageSource) {
+  return getBuilder().image(source);
 }

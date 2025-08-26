@@ -1,113 +1,123 @@
-'use client';
+'use client';                                        // <-- keep client-side
 
-import React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useCart } from '@/context/CartContext';
 import { getProductBySlug, Product } from '@/lib/api';
+import dynamic from 'next/dynamic';                  // ★ CHANGED
+
+import Image from 'next/image';
 import { toast } from 'react-hot-toast';
-import { PortableText } from '@portabletext/react';
-import { urlFor } from '@/lib/sanityimage'
-import Image from 'next/image'
 
-export default function ProductPage({ params }: { params: any }) {
+/* -------------------------------------------------
+   1.  Lazy-load PortableText so its 70 KB bundle
+       is fetched only when this page is viewed.
+   ------------------------------------------------- */
+const PortableText = dynamic(
+  () => import('@portabletext/react').then(m => m.PortableText),
+  { ssr: false, loading: () => <p>Loading description…</p> }
+);                                                   // ★ CHANGED
 
-  const { slug } = params as { slug: string };
+export default function ProductPage({ params }: { params: { slug: string } }) {
 
-
-
-  const [product, setProduct] = useState<Product | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
+  const { slug } = params;
   const { addItemToCart } = useCart();
 
-  // Fetch product by slug
+  /* ---------- state ---------- */
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading]   = useState(true);
+  const [error,   setError]     = useState<string | null>(null);
+
+  /* ---------- data fetch ---------- */
   useEffect(() => {
-    async function fetchProduct() {
+    let ignore = false;
+
+    (async () => {
       try {
-        setIsLoading(true);
-        setLoadError(null);
-        if (slug) {
-          const prod = await getProductBySlug(slug);
-          setProduct(prod); // can be null if not found
-        } else {
-          setLoadError('No product slug in URL.');
+        setLoading(true);
+        setError(null);
+
+        if (!slug) {
+          setError('No product slug in URL.');
+          return;
         }
+
+        const prod = await getProductBySlug(slug);
+        if (!ignore) setProduct(prod);
       } catch (err) {
-        console.error('Fetch product error:', err);
-        setLoadError('Could not load product data.');
-        setProduct(null);
+        console.error(err);
+        if (!ignore) setError('Could not load product data.');
       } finally {
-        setIsLoading(false);
+        if (!ignore) setLoading(false);
       }
-    }
-    fetchProduct();
+    })();
+
+    return () => { ignore = true; };
   }, [slug]);
 
-  // Add to Cart Handler
-  const handleAddToCart = async () => {
-    if (!product?.id) {
+  /* ---------- helpers ---------- */
+  const handleAddToCart = useCallback(async () => {
+    if (!product) {
       toast.error('Product not loaded yet. Please wait.');
       return;
     }
     await addItemToCart(product);
-    // CartContext will show toast messages as needed
-  };
+  }, [product, addItemToCart]);                      // ★ CHANGED (memoised)
 
-  // ---- UI Rendering ----
-  if (isLoading) {
-    return <div className="py-10 text-center">Loading product details...</div>;
-  }
-
-  if (loadError) {
-    return <div className="py-10 text-center text-red-600">{loadError}</div>;
-  }
-
-  if (!product) {
-    return <div className="py-10 text-center text-gray-600">Product not found.</div>;
-  }
-
-  console.log('Product:', product);
-
+  /* ---------- UI ---------- */
+  if (loading)   return <p className="py-10 text-center">Loading product …</p>;
+  if (error)     return <p className="py-10 text-center text-red-600">{error}</p>;
+  if (!product)  return <p className="py-10 text-center">Product not found.</p>;
 
   return (
     <div className="container mx-auto p-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        
 
-{product.imageUrl ? (
-  <Image
-    src={product.imageUrl}
-    alt={product.alt || product.name}
-    width={500} // Example width, adjust as needed
-    height={300} // Example height, adjust as needed
-    className="object-cover rounded-xl"
-  />
-) : (
-  <p>No image available.</p>
-)}
+        {/* image */}
+        {product.imageUrl ? (
+          <Image
+            src={product.imageUrl}
+            alt={product.alt || product.name}
+            width={500}
+            height={300}
+            priority={false}                        // ★ CHANGED (no FCP block)
+            className="object-cover rounded-xl"
+          />
+        ) : (
+          <p>No image available.</p>
+        )}
 
-        {/* Product Details */}
+        {/* details */}
         <div>
           <h1 className="text-4xl font-bold mb-4">{product.name}</h1>
-          <p className="text-2xl text-green-700 mb-4">${product.price.toFixed(2)}</p>
-          <div className="mb-6">
-  {product.description && Array.isArray(product.description) && product.description.length > 0 ? (
-    <PortableText value={product.description} />
-  ) : (
-    <div className="text-gray-500">No description available.</div>
-  )}
-</div>
-          <div className="text-sm text-gray-500 mb-6">
-            In Stock: {product.stock ?? 0} units
-            {product.sku && <span> &nbsp;| SKU: {product.sku}</span>}
-            {product.category && <span>&nbsp;| Category: {typeof product.category === 'string' ? product.category : product.category?.title}</span>}
+
+          <p className="text-2xl text-green-700 mb-4">
+            ${product.price.toFixed(2)}
+          </p>
+
+          <div className="prose mb-6">
+            {Array.isArray(product.description) && product.description.length ? (
+              <PortableText value={product.description} />
+            ) : (
+              <p className="text-gray-500">No description available.</p>
+            )}
           </div>
-          {/* --- Add to Cart Button --- */}
+
+          <p className="text-sm text-gray-500 mb-6">
+            In Stock: {product.stock ?? 0} units
+            {product.sku && <> | SKU: {product.sku}</>}
+            {product.category && (
+              <> | Category: {typeof product.category === 'string'
+                ? product.category
+                : product.category.title}</>
+            )}
+          </p>
+
           <button
-            className="w-full bg-blue-600 text-white py-3 rounded-lg text-lg font-semibold hover:bg-blue-700 disabled:bg-gray-400"
             onClick={handleAddToCart}
-            disabled={isLoading || !product.id}
+            disabled={!product}
+            className="w-full bg-blue-600 hover:bg-blue-700
+                       disabled:bg-gray-400 text-white py-3
+                       rounded-lg text-lg font-semibold"
           >
             Add to Cart
           </button>
@@ -116,4 +126,3 @@ export default function ProductPage({ params }: { params: any }) {
     </div>
   );
 }
-

@@ -1,5 +1,15 @@
+// web-frontend/src/app/api/sync-user/route.ts
 import { NextRequest, NextResponse } from 'next/server';
-import { sanityClient } from '@/lib/sanity';
+import type { SanityClient } from '@sanity/client';
+
+/* lazy singleton – loads @sanity/client only once per server instance */
+let clientPromise: Promise<SanityClient> | null = null;
+const getClient = async () => {
+  if (!clientPromise) {
+    clientPromise = import('@/lib/sanityClient').then((m) => m.getSanityClient());
+  }
+  return clientPromise;
+};
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +19,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    await sanityClient.createOrReplace({
+    const client = await getClient();                 // lazy-loaded
+    await client.createOrReplace({
       _type: 'user',
       _id: id,
       supabaseId: id,

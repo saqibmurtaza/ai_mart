@@ -1,4 +1,4 @@
-import { createClient } from '@sanity/client';
+
 
 // --- Environment Variables & Constants ---
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
@@ -7,13 +7,6 @@ const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
 if (!projectId || !dataset) {
   throw new Error("Missing Sanity environment variables. Check NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET.");
 }
-
-export const sanityClient = createClient({
-  projectId,
-  dataset,
-  apiVersion: process.env.NEXT_PUBLIC_SANITY_API_VERSION || '2023-05-25',
-  useCdn: process.env.NODE_ENV === 'production',
-});
 
 const FASTAPI_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 
@@ -127,23 +120,6 @@ export async function getContentBlocks(): Promise<ContentBlock[]> {
   if (!res.ok) throw new Error("Failed to fetch content blocks");
   return res.json();
 }
-
-
-// ----- Product Helpers -----
-// export async function getProducts(category?: string): Promise<Product[]> {
-//   const url = category
-//     ? `${FASTAPI_URL}/products?category=${encodeURIComponent(category)}`
-//     : `${FASTAPI_URL}/products`;
-
-//   const res = await fetch(url);
-//   if (!res.ok) {
-//     const errorText = await res.text();
-//     console.error("Failed to fetch products from backend:", errorText);
-//     throw new Error("Failed to fetch products");
-//   }
-
-//   return res.json();
-// }
 
 export async function getProducts(
   category?: string,

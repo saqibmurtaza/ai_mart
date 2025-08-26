@@ -3,9 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { sanityClient } from '@/lib/sanity';
 import { getContentBlocks, ContentBlock, getCategories, Category, getFeaturedProducts, Product } from '@/lib/api';
-import { PortableText } from '@portabletext/react';
 import ContentBlockComponent from '@/components/ContentBlock';
 import CategoryCard from '@/components/CategoryCard';
 import ProductCard from '@/components/ProductCard';
