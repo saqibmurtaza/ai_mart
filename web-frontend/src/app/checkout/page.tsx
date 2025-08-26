@@ -1,10 +1,10 @@
 // src/app/checkout/page.tsx
 'use client';
 
-import { useAuth, useUser, SignInButton } from "@clerk/nextjs";
+import { useAuth, useUser } from "@clerk/nextjs";
+import { SignInButton } from '@/components/ClerkUI';
 import { useState, useCallback } from 'react'; // Import useCallback
 import Link from 'next/link';
-import Image from 'next/image';
 import { useCart } from '@/context/CartContext';
 import { toast } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';

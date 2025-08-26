@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import dynamic from 'next/dynamic';           // NEW
 
 import {
   getProducts,
@@ -12,11 +11,6 @@ import {
 } from '@/lib/api';
 
 import ProductCard from '@/components/ProductCard';
-
-// ---- NEW: lazy-load Sanity + RxJS heavy code ------------------------------
-const loadSanity = () =>
-  import('@/lib/sanityClient').then((m) => m.getSanityClient());
-// ---------------------------------------------------------------------------
 
 export default function ShopPage() {
   const router = useRouter();
@@ -71,10 +65,6 @@ export default function ShopPage() {
         const maxPriceNum = currentMaxPrice
           ? parseFloat(currentMaxPrice)
           : undefined;
-
-        // OPTIONAL: if you plan to fetch via Sanity directly instead
-        // of your FastAPI gateway, load the Sanity client here:
-        // const client = await loadSanity();
 
         const [categoriesData, productsData] = await Promise.all([
           getCategories(),

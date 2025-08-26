@@ -1,8 +1,7 @@
 
 'use client';
 
-import { useUser, SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
+import { SignInButton, SignedIn, SignedOut } from '@/components/ClerkUI';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useCallback } from 'react';

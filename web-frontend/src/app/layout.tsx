@@ -7,7 +7,7 @@ import Footer from '@/components/Footer';
 import { Toaster } from 'react-hot-toast';
 import { CartProvider } from '@/context/CartContext';
 import DOMCleanup from '@/components/DOMCleanup';
-import { ClerkProvider } from '@clerk/nextjs';
+import { ClerkProviderDynamic as ClerkProvider } from '@/components/ClerkUI';
 
 if (typeof window !== "undefined") {
   const originalFetch = window.fetch;
