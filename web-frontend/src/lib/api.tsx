@@ -110,13 +110,13 @@ export interface Order {
 
 // ----- General Navigation -----
 export async function getCategories(): Promise<Category[]> {
-  const res = await fetch(`${FASTAPI_URL}/categories`);
+  const res = await fetch(`${FASTAPI_URL}/categories`, { next: { revalidate: 3600 } });
   if (!res.ok) throw new Error("Failed to fetch categories");
   return res.json();
 }
 
 export async function getContentBlocks(): Promise<ContentBlock[]> {
-  const res = await fetch(`${FASTAPI_URL}/content-blocks`);
+  const res = await fetch(`${FASTAPI_URL}/content-blocks`, { next: { revalidate: 3600 } });
   if (!res.ok) throw new Error("Failed to fetch content blocks");
   return res.json();
 }
@@ -135,7 +135,7 @@ export async function getProducts(
 
   const url = `${FASTAPI_URL}/products?${params.toString()}`;
   
-  const res = await fetch(url);
+  const res = await fetch(url, { next: { revalidate: 3600 } });
 
   if (!res.ok) {
     const errorText = await res.text();
@@ -148,13 +148,13 @@ export async function getProducts(
 
 
 export async function getProductBySlug(slug: string): Promise<Product> {
-  const res = await fetch(`${FASTAPI_URL}/products/${slug}`);
+  const res = await fetch(`${FASTAPI_URL}/products/${slug}`, { next: { revalidate: 3600 } });
   if (!res.ok) throw new Error("Failed to fetch product");
   return res.json();
 }
 
 export async function getFeaturedProducts(): Promise<Product[]> {
-  const res = await fetch(`${FASTAPI_URL}/products/featured`);
+  const res = await fetch(`${FASTAPI_URL}/products/featured`, { next: { revalidate: 3600 } });
   if (!res.ok) throw new Error("Failed to fetch featured products");
   return res.json();
 }
