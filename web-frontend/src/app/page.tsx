@@ -1,44 +1,16 @@
-'use client';
-
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import { getContentBlocks, ContentBlock, getCategories, Category, getFeaturedProducts, Product } from '@/lib/api';
+import { getContentBlocks, getCategories, getFeaturedProducts } from '@/lib/api';
 import ContentBlockComponent from '@/components/ContentBlock';
 import CategoryCard from '@/components/CategoryCard';
 import ProductCard from '@/components/ProductCard';
 
-export default function HomePage() {
-  
-  const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchPageData = async () => {
-      try {
-        
-        const [blocksData, categoriesData, featuredData] = await Promise.all([
-        getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
-        getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
-        getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
-      ]);
-
-
-        // setBenefitsSection(benefitsData);
-        setContentBlocks(blocksData);
-        setCategories(categoriesData);
-        setFeaturedProducts(featuredData);
-      } catch (error) {
-        console.error("An unexpected error occurred while fetching page data:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchPageData();
-  }, []);
+export default async function HomePage() {
+  const [contentBlocks, categories, featuredProducts] = await Promise.all([
+    getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
+    getCategories().catch(e => { console.error("Failed to fetch categories:", e); return []; }),
+    getFeaturedProducts().catch(e => { console.error("Failed to fetch featured products:", e); return []; }),
+  ]);
 
   return (
     <>
@@ -65,9 +37,7 @@ export default function HomePage() {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-8">Shop By Category</h2>
-          {isLoading ? (
-            <p>Loading categories...</p>
-          ) : categories.length > 0 ? (
+          {categories.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
               {categories.map((category) => (
                 <CategoryCard key={category._id} category={category} />
@@ -82,12 +52,10 @@ export default function HomePage() {
       <section className="py-16">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-8">Featured Products</h2>
-          {isLoading ? (
-            <p>Loading featured products...</p>
-          ) : featuredProducts.length > 0 ? (
+          {featuredProducts.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-              {featuredProducts.map((product) => (
-                <ProductCard key={product._id} product={product} />
+              {featuredProducts.map((product, index) => (
+                <ProductCard key={product._id} product={product} isPriority={index < 4} />
               ))}
             </div>
           ) : (
@@ -99,9 +67,7 @@ export default function HomePage() {
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-8">Merchandise Collection</h2>
-          {isLoading ? (
-            <p className="text-center">Loading content...</p>
-          ) : contentBlocks.length > 0 ? (
+          {contentBlocks.length > 0 ? (
             <div className="space-y-12">
               {contentBlocks.map((block) => (
                 <ContentBlockComponent key={block._id} data={block} />
@@ -112,8 +78,6 @@ export default function HomePage() {
           )}
         </div>
       </section>
-
-
     </>
   );
 }

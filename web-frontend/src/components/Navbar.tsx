@@ -117,7 +117,7 @@ export default function Navbar() {
           </SignedIn>
           <SignedOut>
             <SignInButton mode="modal">
-              <button className="relative text-gray-600 hover:text-primary focus:outline-none cursor-pointer">
+              <button aria-label="Sign in" className="relative text-gray-600 hover:text-primary focus:outline-none cursor-pointer">
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-6 w-6 text-gray-700 hover:text-black"

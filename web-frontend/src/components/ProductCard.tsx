@@ -59,9 +59,10 @@ import { toast } from 'react-hot-toast';
 
 interface ProductCardProps {
   product: Product;
+  isPriority?: boolean;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, isPriority = false }: ProductCardProps) {
   const { addItemToCart } = useCart();
   const imageUrl = product.imageUrl || '/images/600x400.svg'; // Fallback image
 
@@ -78,10 +79,11 @@ export default function ProductCard({ product }: ProductCardProps) {
       <Link href={`/products/${product.slug}`} className="block relative h-64 w-full">
         <Image
           src={imageUrl}
-          alt={product.alt || product.name}
+          alt=""
           layout="fill"
           objectFit="cover"
           className="transition-transform duration-300 group-hover:scale-105"
+          priority={isPriority}
         />
       </Link>
       <div className="p-4 flex flex-col flex-grow">
@@ -91,7 +93,7 @@ export default function ProductCard({ product }: ProductCardProps) {
         <p className="text-gray-600 mt-1 flex-grow">${product.price.toFixed(2)}</p>
         <button
           onClick={handleAddToCart}
-          className="mt-4 w-full bg-blue-500 text-white py-2 rounded-md hover:bg-blue-600 transition-colors"
+          className="mt-4 w-full bg-blue-700 text-white py-2 rounded-md hover:bg-blue-800 transition-colors"
         >
           Add to Cart
         </button>
