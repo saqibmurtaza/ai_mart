@@ -575,20 +575,21 @@ async def sanity_webhook(
         raise HTTPException(status_code=500, detail="Internal server error.")
 
 # PAYPAL CONFIGURATION
-
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET")
 
-# Dynamically set the PayPal API base URL based on the mode in the .env file
-PAYPAL_MODE = os.getenv("PAYPAL_MODE", "sandbox")  # Default to sandbox if not set
+def get_paypal_api_base() -> str:
+    """
+    Determines the PayPal API base URL based on the PAYPAL_MODE environment variable.
+    Defaults to sandbox if the mode is not 'live'.
+    """
+    paypal_mode = os.getenv("PAYPAL_MODE", "sandbox")
+    if paypal_mode.lower() == "live":
+        logger.info("PayPal integration is running in LIVE mode.")
+        return "https://api-m.paypal.com"
 
-if PAYPAL_MODE == "live":
-    PAYPAL_API_BASE = "https://api-m.paypal.com"
-else:
-    PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com"
-
-logger.info(f"PayPal mode is set to '{PAYPAL_MODE}'. Using API base: {PAYPAL_API_BASE}")
-
+    logger.info("PayPal integration is running in SANDBOX mode.")
+    return "https://api-m.sandbox.paypal.com"
 
 # --- Helper Function to Get PayPal Access Token ---
 def get_paypal_access_token():
@@ -598,9 +599,12 @@ def get_paypal_access_token():
     auth = (PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET)
     data = {'grant_type': 'client_credentials'}
     headers = {'Accept': 'application/json', 'Accept-Language': 'en_US'}
+    api_base = get_paypal_api_base()
     
+    logger.info(f"Attempting to get PayPal access token from {api_base}")
+
     try:
-        response = requests.post(f"{PAYPAL_API_BASE}/v1/oauth2/token", auth=auth, data=data, headers=headers)
+        response = requests.post(f"{api_base}/v1/oauth2/token", auth=auth, data=data, headers=headers)
         response.raise_for_status()
         token_data = response.json()
         return token_data['access_token']
@@ -644,7 +648,8 @@ async def create_order_api(
             }]
         }
 
-        response = requests.post(f"{PAYPAL_API_BASE}/v2/checkout/orders", json=payload, headers=headers)
+        api_base = get_paypal_api_base()
+        response = requests.post(f"{api_base}/v2/checkout/orders", json=payload, headers=headers)
         response.raise_for_status()
         order_data = response.json()
         
@@ -667,7 +672,8 @@ async def capture_order_api(
         # Capture payment in PayPal (your existing logic)
         access_token = get_paypal_access_token()
         headers = {"Content-Type": "application/json", "Authorization": f"Bearer {access_token}"}
-        response = requests.post(f"{PAYPAL_API_BASE}/v2/checkout/orders/{order_id}/capture", headers=headers)
+        api_base = get_paypal_api_base()
+        response = requests.post(f"{api_base}/v2/checkout/orders/{order_id}/capture", headers=headers)
         response.raise_for_status()
         capture_data = response.json()
 
