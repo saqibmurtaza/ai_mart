@@ -11,6 +11,12 @@
 **/dist/
 
 # --- IMPORTANT: Ignore actual .env files containing secrets ---
+
+# Ignore all .env and .env.local files to prevent secrets from being committed.
+# These files are intended for local environment configuration only.
+.env
+.env.local
+
 # This ensures that your actual .env files (with your real API keys, etc.) are NOT committed.
 # Each subfolder's .env file will be ignored.
 backend/.env
