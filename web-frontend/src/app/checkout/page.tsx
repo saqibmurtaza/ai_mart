@@ -23,6 +23,9 @@ export default function CheckoutPage() {
   const backendBase = process.env.NEXT_PUBLIC_API_BASE_URL;
   const paypalClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
 
+  // Log the client ID to the console for easy debugging
+  console.log("Initializing PayPal with Client ID:", paypalClientId);
+
   // Use useCallback to stabilize the function identity across re-renders
   const createOrder = useCallback(async () => {
     console.log("CreateOrder function called. Cart Total:", cartTotal);
