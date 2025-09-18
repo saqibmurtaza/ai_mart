@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
     // This is the keep-alive query
     // It selects a single row from an existing table to create activity
     const { data, error } = await supabase
-      .from('your_table_name')
-      .select('id')
+      .from('test_ping_table')
+      .select('health')
       .limit(1);
 
     if (error) {
