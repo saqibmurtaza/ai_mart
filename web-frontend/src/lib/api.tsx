@@ -1,4 +1,4 @@
-
+import { NextResponse } from 'next/server';
 
 // --- Environment Variables & Constants ---
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
@@ -280,3 +280,5 @@ export async function getOrders(token?: string): Promise<Order[]> {
     throw new Error(`Failed to fetch orders: ${err.message}`);
   }
 }
+
+

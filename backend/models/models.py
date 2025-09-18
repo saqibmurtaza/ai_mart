@@ -21,23 +21,6 @@ class Product(SQLModel, table=True):
     sku: Optional[str] = None
     slug: Optional[str] = None                 # corresponds to sku character varying NULL
 
-# class CategoryData(BaseModel):
-#     slug: Optional[str]
-#     title: Optional[str]
-
-# class ProductDisplayAPIModel(BaseModel):
-#     id: str # Use 'id' for the primary identifier (can be Supabase ID or Sanity _id)
-#     slug: Optional[str] = None # For SEO-friendly URLs (from Sanity, or map Supabase ID)
-#     name: str
-#     price: float
-#     description: Optional[Any] = None # Can be string (Supabase) or Portable Text (Sanity)
-#     category: Optional[CategoryData]
-#     imageUrl: Optional[str] = None # Standardized image URL field
-#     alt: Optional[str] = None # Alt text for the image
-#     stock: Optional[int] = None
-#     isFeatured: Optional[bool] = False # Only for Sanity-sourced featured products
-#     sku: Optional[str] = None
-
 
 class SanityProductAPIModel(BaseModel):
     _id: str # Sanity document ID
