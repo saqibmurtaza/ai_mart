@@ -5,53 +5,39 @@ import ContentBlockComponent from '@/components/ContentBlock';
 import CategoryCard from '@/components/CategoryCard';
 import ProductCard from '@/components/ProductCard';
 import { Metadata } from 'next';
+import { getSiteSettings } from "@/lib/api"; // create this helper
 
-// export const metadata: Metadata = {
-//   title: 'Curated Shop Australia - Your One-Stop Online Store',
-//   description: 'Discover the finest selection of curated products. Shop our collections of unique items, from home goods to fashion and more.',
-//   openGraph: {
-//     title: 'Curated Shop Australia',
-//     description: 'Find unique curated products.',
-//     url: 'https://curated-shop-australia.vercel.app/',
-//     siteName: 'Curated Shop Australia',
-//     images: [
-//       {
-//         url: 'https://curated-shop-australia.vercel.app/images/default-thumbnail.jpg',
-//         width: 800,
-//         height: 600,
-//         alt: 'Curated Shop Australia Logo',
-//       },
-//     ],
-//     locale: 'en_AU',
-//     type: 'website',
-//   },
-// src/app/page.tsx
-export const metadata = {
-  title: "Curated Shop Australia",
-  description: "Fun, durable charms & accessories for kids and fans!",
-  openGraph: {
-    title: "Curated Shop Australia",
-    description: "Soft PVC charms, anime badges, AFL team logos and more.",
-    url: "https://curated-shop-australia.vercel.app",
-    siteName: "Curated Shop",
-    images: [
-      {
-        url: "https://cdn.sanity.io/images/fb3pwyau/production/e432035297f9bd6decd3c465632807545152128d-729x729.png",
-        width: 729,
-        height: 729,
-        alt: "Curated Shop Collection",
-      },
-    ],
-    type: "website",
-  },  
-  twitter: {
-    card: 'summary_large_image',
-    title: 'Curated Shop Australia',
-    description: 'Find unique products from across Australia.',
-    images: ['https://curated-shop-australia.vercel.app/images/default-thumbnail.jpg'],
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const settings = await getSiteSettings();
 
+  const ogImageUrl =
+    settings?.seoImage ||
+    "https://curated-shop-australia.vercel.app/images/default-thumbnail.jpg";
+
+  return {
+    title: settings?.title || "Curated Shop Australia",
+    description: settings?.description || "Discover curated products.",
+    openGraph: {
+      title: settings?.title || "Curated Shop Australia",
+      description: settings?.description || "Discover curated products.",
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 628,
+          alt: "Curated Shop Banner",
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: settings?.title || "Curated Shop Australia",
+      description: settings?.description || "Discover curated products.",
+      images: [ogImageUrl],
+    },
+  };
+} 
 export default async function HomePage() {
   const [contentBlocks, categories, featuredProducts] = await Promise.all([
     getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),

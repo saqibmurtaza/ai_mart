@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { getSanityClient } from "./sanityClient";
 
 // --- Environment Variables & Constants ---
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
@@ -282,3 +282,17 @@ export async function getOrders(token?: string): Promise<Order[]> {
 }
 
 
+
+
+
+export async function getSiteSettings() {
+  const client = getSanityClient();
+
+  const query = `*[_type == "siteSettings"][0]{
+    title,
+    description,
+    "seoImage": seoImage.asset->url
+  }`;
+
+  return await client.fetch(query);
+}
