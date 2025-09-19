@@ -37,7 +37,10 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [ogImageUrl],
     },
   };
-} 
+}
+
+
+
 export default async function HomePage() {
   const [contentBlocks, categories, featuredProducts] = await Promise.all([
     getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
