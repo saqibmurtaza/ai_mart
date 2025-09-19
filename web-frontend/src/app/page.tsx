@@ -10,6 +10,7 @@ import { getSiteSettings } from "@/lib/api"; // create this helper
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
 
+  // Always ensure a valid absolute URL for og:image
   const ogImageUrl =
     settings?.seoImage ||
     "https://curated-shop-australia.vercel.app/images/default-thumbnail.jpg";
