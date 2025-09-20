@@ -10,6 +10,7 @@ import { getSiteSettings } from "@/lib/api"; // create this helper
 export async function generateMetadata(): Promise<Metadata> {
   const settings = await getSiteSettings();
 
+  // Always ensure a valid absolute URL for og:image
   const ogImageUrl =
     settings?.seoImage ||
     "https://curated-shop-australia.vercel.app/images/default-thumbnail.jpg";
@@ -37,7 +38,10 @@ export async function generateMetadata(): Promise<Metadata> {
       images: [ogImageUrl],
     },
   };
-} 
+}
+
+
+
 export default async function HomePage() {
   const [contentBlocks, categories, featuredProducts] = await Promise.all([
     getContentBlocks().catch(e => { console.error("Failed to fetch content blocks:", e); return []; }),
