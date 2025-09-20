@@ -1,16 +1,14 @@
-import { clerkMiddleware } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 
-export default function middleware(req: NextRequest, event: any) {
+export function middleware(req: NextRequest) {
   const ua = req.headers.get("user-agent") || "";
 
-  // Let LinkedIn, Twitter, Facebook bots pass through normally
+  // Redirect LinkedIn, Facebook, Twitter crawlers to static fallback
   if (/LinkedInBot|Twitterbot|facebookexternalhit/i.test(ua)) {
-    return NextResponse.next();
+    return NextResponse.rewrite(new URL("/og-fallback.html", req.url));
   }
 
-  // Fallback to Clerk middleware for normal users
-  return clerkMiddleware()(req, event);
+  return NextResponse.next();
 }
 
 export const config = {

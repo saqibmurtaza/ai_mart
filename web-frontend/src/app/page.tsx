@@ -8,33 +8,31 @@ import { Metadata } from 'next';
 import { getSiteSettings } from "@/lib/api"; // create this helper
 
 export async function generateMetadata(): Promise<Metadata> {
-  const settings = await getSiteSettings();
+  const botUserAgents = ['LinkedInBot', 'Twitterbot', 'facebookexternalhit'];
 
-  // Always ensure a valid absolute URL for og:image
-  const ogImageUrl =
-    settings?.seoImage ||
-    "https://curated-shop-australia.vercel.app/images/default-thumbnail.jpg";
+  // Check if this request is coming from a bot
+  const isBot = typeof navigator === 'undefined' 
+    && process.env.IS_BOT === 'true'; // we’ll handle this in middleware
 
+  // Fallback static metadata
+  const title = "Curated Shop Australia";
+  const description = "Soft PVC charms, anime badges, AFL team logos and more.";
+  const ogImageUrl = "https://cdn.sanity.io/images/fb3pwyau/production/719aaaf817351e05c360d27974f60fe437d3819a-1200x628.png";
+
+  // Return static metadata immediately
   return {
-    title: settings?.title || "Curated Shop Australia",
-    description: settings?.description || "Discover curated products.",
+    title,
+    description,
     openGraph: {
-      title: settings?.title || "Curated Shop Australia",
-      description: settings?.description || "Discover curated products.",
-      images: [
-        {
-          url: ogImageUrl,
-          width: 1200,
-          height: 628,
-          alt: "Curated Shop Banner",
-        },
-      ],
+      title,
+      description,
+      images: [{ url: ogImageUrl, width: 1200, height: 628, alt: "Curated Shop Banner" }],
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
-      title: settings?.title || "Curated Shop Australia",
-      description: settings?.description || "Discover curated products.",
+      title,
+      description,
       images: [ogImageUrl],
     },
   };
