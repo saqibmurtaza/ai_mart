@@ -282,6 +282,9 @@ export async function getOrders(token?: string): Promise<Order[]> {
 }
 
 
+
+
+
 export async function getSiteSettings() {
   const client = getSanityClient();
 
@@ -291,5 +294,5 @@ export async function getSiteSettings() {
     "seoImage": seoImage.asset->url
   }`;
 
-  return client.fetch(query);
+  return await client.fetch(query);
 }
