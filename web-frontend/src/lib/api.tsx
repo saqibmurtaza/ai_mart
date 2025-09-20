@@ -3,15 +3,11 @@ import { getSanityClient } from "./sanityClient";
 // --- Environment Variables & Constants ---
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET;
+const FASTAPI_URL = process.env.NEXT_PUBLIC_API_BASE_URL;
 
 if (!projectId || !dataset) {
   throw new Error("Missing Sanity environment variables. Check NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET.");
 }
-
-// const FASTAPI_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-const FASTAPI_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
-// The ! ensures TypeScript knows this variable will always exist.
-// No fallback needed; you define it explicitly in dev and prod environments.
 
 // ----------- TYPES -----------
 
@@ -115,7 +111,7 @@ export interface Order {
 export async function getCategories(): Promise<Category[]> {
   const res = await fetch(`${FASTAPI_URL}/categories`, { next: { revalidate: 3600 } });
   if (!res.ok) throw new Error("Failed to fetch categories");
-  return res.json();
+  return res.json();  
 }
 
 export async function getContentBlocks(): Promise<ContentBlock[]> {
