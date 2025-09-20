@@ -1,16 +1,15 @@
-// web_frontend/middleware.ts
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 export default function middleware(req: NextRequest, event: any) {
   const ua = req.headers.get("user-agent") || "";
 
-  // ✅ Allow crawlers to bypass Clerk (they must see HTML + meta tags)
+  // ✅ Allow crawlers directly (do not rewrite to missing /api/og-fallback)
   if (/LinkedInBot|Twitterbot|facebookexternalhit/i.test(ua)) {
     return NextResponse.next();
   }
 
-  // ✅ Normal visitors go through Clerk
+  // ✅ Normal users → Clerk auth
   return clerkMiddleware()(req, event);
 }
 
