@@ -8,7 +8,10 @@ if (!projectId || !dataset) {
   throw new Error("Missing Sanity environment variables. Check NEXT_PUBLIC_SANITY_PROJECT_ID and NEXT_PUBLIC_SANITY_DATASET.");
 }
 
-const FASTAPI_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+// const FASTAPI_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+const FASTAPI_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
+// The ! ensures TypeScript knows this variable will always exist.
+// No fallback needed; you define it explicitly in dev and prod environments.
 
 // ----------- TYPES -----------
 
@@ -280,10 +283,6 @@ export async function getOrders(token?: string): Promise<Order[]> {
     throw new Error(`Failed to fetch orders: ${err.message}`);
   }
 }
-
-
-
-
 
 export async function getSiteSettings() {
   const client = getSanityClient();
