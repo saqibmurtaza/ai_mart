@@ -119,4 +119,6 @@ export default async function HomePage() {
   );
 }
 
-export const dynamic = 'force-dynamic';
+// export const dynamic = 'force-dynamic';
+export const dynamic = process.env.NODE_ENV === "production" ? 'auto' : 'force-dynamic';
+
